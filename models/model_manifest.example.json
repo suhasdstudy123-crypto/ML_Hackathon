@@ -1,0 +1,60 @@
+{
+  "configured": false,
+  "name": "lightgbm",
+  "version": "REPLACE_WITH_TRAINED_VERSION",
+  "artifact_format": "lightgbm_native",
+  "artifact_path": "lightgbm.txt",
+  "artifact_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+  "feature_schema_version": "authoritative-parquet-v1",
+  "runtime_pipeline": "precomputed-authoritative-v1",
+  "feature_names": [
+    "dist_to_edge_m",
+    "dist_to_u_node_m",
+    "dist_to_v_node_m",
+    "bearing_valid",
+    "bearing_diff_deg",
+    "time_gap_prev_s",
+    "speed_implied_mps",
+    "irregular_gap_flag",
+    "candidate_rank",
+    "dist_minus_best_at_point_m",
+    "num_candidates_at_point",
+    "edge_length_m",
+    "u_node_degree",
+    "v_node_degree",
+    "reverse_edge_exists"
+  ],
+  "feature_dtypes": {
+    "dist_to_edge_m": "float64",
+    "dist_to_u_node_m": "float64",
+    "dist_to_v_node_m": "float64",
+    "bearing_valid": "int64",
+    "bearing_diff_deg": "float64",
+    "time_gap_prev_s": "float64",
+    "speed_implied_mps": "float64",
+    "irregular_gap_flag": "float64",
+    "candidate_rank": "int64",
+    "dist_minus_best_at_point_m": "float64",
+    "num_candidates_at_point": "int64",
+    "edge_length_m": "float64",
+    "u_node_degree": "int64",
+    "v_node_degree": "int64",
+    "reverse_edge_exists": "int64"
+  },
+  "preprocessing_path": null,
+  "preprocessing_sha256": null,
+  "preprocessing_feature_names": null,
+  "preprocessing_training_reference": null,
+  "missing_value_policy": "native_missing",
+  "training_configuration_reference": "REPLACE_WITH_TRAINING_CONFIG_REFERENCE",
+  "output_type": "binary_probability",
+  "positive_class": 1,
+  "calibration": {
+    "method": "none",
+    "development_validation": "pending"
+  },
+  "creation_metadata": {
+    "trained_at": null,
+    "library_versions": {}
+  }
+}

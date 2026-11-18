@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+.env
+node_modules/
+evaluator_ui/dist/
+data/authoritative/
+models/lightgbm*
+models/model_manifest.json
+logs/
+coverage/
