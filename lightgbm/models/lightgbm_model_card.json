@@ -1,0 +1,22 @@
+{
+  "feature_columns": [
+    "dist_to_edge_m",
+    "dist_to_u_node_m",
+    "dist_to_v_node_m",
+    "bearing_diff_deg",
+    "bearing_valid",
+    "time_gap_prev_s",
+    "speed_implied_mps",
+    "irregular_gap_flag",
+    "candidate_rank",
+    "dist_minus_best_at_point_m",
+    "num_candidates_at_point",
+    "edge_length_m",
+    "u_node_degree",
+    "v_node_degree",
+    "reverse_edge_exists"
+  ],
+  "pipeline": "SimpleImputer(median) -> StandardScaler -> LGBMClassifier",
+  "seed": 42,
+  "usage": "joblib.load(\"lightgbm.joblib\").predict_proba(X[feature_columns])[:,1]"
+}

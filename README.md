@@ -2,21 +2,33 @@
 
 Explore real trip GPS observations and their directed road networks in a Leaflet/OpenStreetMap dashboard. FastAPI runs on Laptop 1; Laptop 2 runs the static dashboard and connects over a configurable LAN URL.
 
-**Current state:** previews work for all ten reserved evaluator trips. No trained LightGBM artifact is supplied, so `model_ready=false` and reconstruction returns HTTP 503 `MODEL_NOT_READY`. No model was trained, substituted or simulated. The supplied notebook is integrated for route-blind online feature generation in user-authorized demo mode. Candidate choices at geometric ties differ from the saved training export; this known limitation is documented.
+**Current state:** the trained LightGBM model (`lightgbm/`) is connected and all ten reserved evaluator trips reconstruct end to end: online notebook features → LightGBM candidate scores → directed HMM/Viterbi → server-side evaluation (Top-1 accuracy, classifier-only Top-1, route continuity, route-arc precision/recall, candidate miss rate). The backend reproduces the notebook's saved student-test probabilities exactly (max difference 1e-16; Top-1 0.7719). Online candidates match the training export on 99.8% of student-test points; rare equal-distance ties can differ (demo mode, documented).
+
+## Windows quick start (demo)
+
+```powershell
+python -m pip install -r requirements-dev.txt -r requirements-model.txt
+python scripts\import_dataset.py "<folder or zip with the seven artifacts>"   # once, on Laptop 1
+python scriptsalidate_model.py                                             # model load + exact parity check
+.\start_api.ps1 -UiOrigin http://<Laptop2-IP>:5173                           # Laptop 1 (add -Port 8011 if 8000 is busy)
+.\start_ui.ps1 -ApiUrl http://<Laptop1-IP>:8000                              # Laptop 2
+```
+
+The model is loaded from `lightgbm/models/model_manifest.json`: the native booster `lightgbm_booster.txt` plus `lightgbm_preprocessing.json`, the exact median-imputer/standard-scaler parameters taken from the trained pipeline by `scripts/export_lightgbm_artifacts.py`. Do **not** substitute `feature_scaler.joblib`: its ~1e-12 parameter drift flips tree splits (probability changes up to 0.165).
 
 ```text
 Browser (Laptop 2) → versioned HTTP API (Laptop 1)
                          ├─ TripService → track / nodes / arcs → safe preview
                          └─ bounded inference job
                               → notebook candidates/features (no labels; demo parity warning)
-                              → LightGBMModelProvider (pending trained artifact)
+                              → LightGBMModelProvider (lightgbm/models, exact preprocessing)
                               → directed Viterbi + classifier sequences
                               → EvaluationService (protected .route, aggregates only)
 ```
 
 ## Setup and startup
 
-Python 3.11+ and Node.js 22+ recommended. The existing scientific requirements are retained; LightGBM is optional until a real artifact is supplied.
+Python 3.11+ and Node.js 22+ recommended. The existing scientific requirements are retained; Install `requirements-model.txt` for LightGBM.
 
 ```bash
 python3 -m venv .venv
@@ -74,7 +86,7 @@ python scripts/verify_artifacts.py
 
 The supplied fifteen-feature Parquet schema differs from the preserved historical ten-feature NPZ pipeline. **Do not regenerate or replace either dataset to make them agree.** See [the data contract](docs/DATA_CONTRACT.md), exact [schema inspection](docs/DATA_SCHEMA_INSPECTION.json), and [repository audit](docs/REPOSITORY_AUDIT.md). The ten reserved evaluator trips have no feature rows in the supplied ZIP. Their raw previews do not require feature data or a model; notebook features are generated when genuine inference is requested after model delivery.
 
-## Connect your trained model later
+## Replacing the model with a newly trained one
 
 1. The supplied notebook now generates evaluator features directly from track/nodes/arcs. Demo mode is enabled by default as requested. Set `PATHSNAP_NOTEBOOK_DEMO_MODE=0` to enforce strict parity, or supply verified precomputed features with raw-file bindings. See [notebook integration](docs/NOTEBOOK_INTEGRATION.md).
 2. Train separately on permitted data using the fifteen features in canonical order. Export a native LightGBM Booster or joblib LightGBM classifier; no unrelated classifier is accepted.

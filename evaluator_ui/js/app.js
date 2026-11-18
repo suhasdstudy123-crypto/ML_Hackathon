@@ -22,7 +22,7 @@ function showError(error) {el('error').hidden = false; el('error-message').textC
 function clearError() {el('error').hidden = true;}
 function resetResults() {
   routeMap?.clearResults();
-  for (const id of ['metric-acc', 'metric-cont', 'metric-jacc', 'metric-lat']) el(id).textContent = '—';
+  for (const id of ['metric-acc', 'metric-cont', 'metric-recall', 'metric-lat']) {el(id).textContent = '—'; el(`${id}-sub`).textContent = '';}
   el('progress').textContent = 'Metrics appear after a real reconstruction.'; el('result-state').textContent = 'AWAITING INFERENCE';
   document.querySelectorAll('[data-layer$="route"]').forEach(node => {/** @type {HTMLInputElement} */(node).disabled = true;});
 }
@@ -102,8 +102,16 @@ async function selectTrip(id) {
 }
 async function renderResult(result) {
   if (result.schema_version !== '1.0' || result.trip_id !== metadata?.trip_id) throw new Error('Result schema or trip does not match this workspace');
-  el('metric-acc').textContent = formatFraction(result.metrics.top1_accuracy); el('metric-cont').textContent = formatFraction(result.metrics.route_continuity);
-  el('metric-jacc').textContent = formatFraction(result.metrics.sequence_jaccard); el('metric-lat').textContent = formatDuration(result.metrics.inference_time_ms);
+  const m = result.metrics, usedHmm = result.predictions.hmm_arc_sequence.length > 0;
+  // Headline numbers are for the route shown (HMM when enabled); sub-lines give the comparison.
+  el('metric-acc').textContent = formatFraction(m.top1_accuracy);
+  el('metric-acc-sub').textContent = m.top1_accuracy == null ? '' : `${usedHmm ? 'HMM' : 'Classifier'} · classifier only ${formatFraction(m.classifier_top1_accuracy)} · ${m.evaluated_points?.toLocaleString() ?? '—'} points`;
+  el('metric-cont').textContent = formatFraction(m.route_continuity);
+  el('metric-cont-sub').textContent = `${result.diagnostics.transition_breaks.length} run breaks`;
+  el('metric-recall').textContent = formatFraction(m.route_arc_recall);
+  el('metric-recall-sub').textContent = `precision ${formatFraction(m.route_arc_precision)} · candidate miss ${formatFraction(m.candidate_miss_rate)}`;
+  el('metric-lat').textContent = formatDuration(m.inference_time_ms);
+  el('metric-lat-sub').textContent = `${result.observations.count.toLocaleString()} GPS observations`;
   el('progress').textContent = `Reconstructed ${result.observations.count.toLocaleString()} observations · ${result.diagnostics.transition_breaks.length} run breaks`;
   el('result-state').textContent = 'COMPLETED'; el('warnings').textContent = result.warnings.join(' ');
   for (const key of ['classifier_route', 'hmm_route']) {const checkbox = /** @type {HTMLInputElement} */(document.querySelector(`[data-layer="${key}"]`)); checkbox.disabled = !result.geometry[key].features.length;}

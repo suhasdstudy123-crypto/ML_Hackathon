@@ -32,6 +32,9 @@ def create_app(settings=None, provider=None):
         if settings.notebook_demo_mode:
             log.warning('notebook_demo_mode_enabled: exact candidate parity is not verified')
         provider.load()
+        meta=provider.get_metadata()
+        # Printed in the API console so evaluators can see which model is serving requests.
+        log.info('model_state',extra={'model_version':meta['version'],'stage':meta['state']})
         app.state.jobs=JobManager(settings,inference,evaluation)
         yield
         app.state.jobs.shutdown()

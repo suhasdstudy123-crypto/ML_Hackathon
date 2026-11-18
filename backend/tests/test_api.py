@@ -24,8 +24,9 @@ def wait_done(client,jid):
         sleep(.01)
     raise AssertionError('Job did not finish')
 
-def test_real_ten_trip_preview_and_no_reference_exposure():
-    app=create_app()
+def test_real_ten_trip_preview_and_no_reference_exposure(tmp_path):
+    # Without a configured model the previews still work and reconstruction is refused.
+    app=create_app(Settings(manifest_path=tmp_path/'absent.json'))
     with TestClient(app) as c:
         assert c.get('/api/v1/health/live').status_code==200
         ready=c.get('/api/v1/health/ready').json();assert not ready['model_ready']
@@ -67,7 +68,9 @@ def test_successful_synthetic_inference_evaluates_after_scoring(synthetic_enviro
         assert [e['stage'] for e in job['stages']]==['QUEUED','PREPARING_DATA','PREPARING_FEATURES','SCORING_CANDIDATES','DECODING_ROUTE','EVALUATING','COMPLETED']
         r=c.get(f'/api/v1/reconstructions/{jid}/result');assert r.status_code==200
         d=r.json();assert d['predictions']['hmm_arc_sequence']==[0,1,2]
-        assert d['metrics']['top1_accuracy'] is None and d['metrics']['sequence_jaccard']==1
+        assert d['metrics']['sequence_jaccard']==1 and d['metrics']['route_arc_precision']==1 and d['metrics']['route_arc_recall']==1
+        # Top-1 is computed server-side from the notebook alignment (synthetic points sit on arc ends).
+        assert 0<=d['metrics']['top1_accuracy']<=1 and d['metrics']['classifier_top1_accuracy']==d['metrics']['top1_accuracy']
         assert len(d['geometry']['hmm_route']['features'])==3
         assert all(word not in r.text.lower() for word in FORBIDDEN)
         assert d['model']['version']=='SYNTHETIC_UNIT_TEST_ONLY'

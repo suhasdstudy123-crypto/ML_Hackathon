@@ -78,7 +78,8 @@ class JobManager:
         try:
             trip, seq, mapping, result = self.inference.run(j['trip_id'],j['use_hmm'],stage,check)
             check(); stage('EVALUATING')
-            metrics,warnings = self.evaluation.evaluate(trip,seq,mapping)
+            # Classifier-only sequence is also scored so the UI can show what the HMM changed.
+            metrics,warnings = self.evaluation.evaluate(trip,seq,mapping,result['predictions']['classifier_arc_sequence'])
             check()
             result['metrics'].update(metrics); result['warnings'].extend(warnings); result['job_id'] = jid
             from backend.app.schemas import ReconstructionResult

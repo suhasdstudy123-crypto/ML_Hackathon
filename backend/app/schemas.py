@@ -111,6 +111,11 @@ class Metrics(Strict):
     sequence_jaccard: float | None=Field(default=None,ge=0,le=1)
     candidate_miss_rate: float | None=Field(default=None,ge=0,le=1)
     inference_time_ms: float=Field(ge=0)
+    # Server-side evaluation against the protected reference (aggregates only).
+    classifier_top1_accuracy: float | None=Field(default=None,ge=0,le=1)
+    route_arc_precision: float | None=Field(default=None,ge=0,le=1)
+    route_arc_recall: float | None=Field(default=None,ge=0,le=1)
+    evaluated_points: int | None=Field(default=None,ge=0)
 
 class Observations(Strict):
     count: int

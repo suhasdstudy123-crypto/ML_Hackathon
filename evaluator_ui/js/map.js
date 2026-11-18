@@ -7,7 +7,7 @@ export function toLeaflet(coordinates) {
 export const colors = {raw_gps: '#3183f6', road_network: '#8795a7', classifier_route: '#e5a526', hmm_route: '#21a878'};
 export class RouteMap {
   constructor(id, inspector, leaflet = globalThis.L) {
-    if (!leaflet) throw new Error('Map library unavailable. Check internet access to the Leaflet CDN and reload.');
+    if (!leaflet) throw new Error('Map library unavailable. Rebuild the dashboard (npm run build) so vendor/leaflet is included, then reload.');
     this.L = leaflet; this.inspector = inspector;
     /** @type {(() => void) | null} */ this.onTileError = null;
     this.map = leaflet.map(id, {preferCanvas: true, zoomControl: false}).setView([50.1, 8.65], 12);

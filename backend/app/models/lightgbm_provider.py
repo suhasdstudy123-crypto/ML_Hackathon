@@ -10,6 +10,7 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 from backend.app.core.errors import AppError
 from .provider import ModelProvider
 from .contract import FEATURES, FEATURE_TYPES, SCHEMA_VERSION, PIPELINE_VERSION, validate_features
+from .preprocessing import JsonStandardizer
 
 log = logging.getLogger('pathsnap')
 
@@ -30,6 +31,9 @@ class Manifest(BaseModel):
     preprocessing_feature_names: list[str] | None = None
     preprocessing_training_reference: str | None = None
     missing_value_policy: Literal['reject', 'native_missing', 'preprocessor'] = 'native_missing'
+    # 'positional': the model was trained on a NumPy array, so LightGBM stored the names
+    # Column_0..Column_14. Columns are then bound by the canonical order in feature_names.
+    feature_name_binding: Literal['by_name', 'positional'] = 'by_name'
     training_configuration_reference: str = Field(min_length=1)
     output_type: Literal['binary_probability'] = 'binary_probability'
     positive_class: Literal[1] = 1
@@ -83,7 +87,8 @@ class LightGBMModelProvider(ModelProvider):
             booster = model if isinstance(model, lgb.Booster) else model.booster_
             if booster.num_trees() < 1:
                 raise ValueError('Model contains no trained trees')
-            if booster.num_feature() != len(FEATURES) or booster.feature_name() != FEATURES:
+            expected_names = FEATURES if m.feature_name_binding == 'by_name' else [f'Column_{i}' for i in range(len(FEATURES))]
+            if booster.num_feature() != len(FEATURES) or booster.feature_name() != expected_names:
                 raise ValueError('Model feature count, names or order differ from manifest')
             if not str(booster.dump_model().get('objective', '')).startswith('binary '):
                 raise ValueError('Only binary logistic probability output is supported')
@@ -91,7 +96,8 @@ class LightGBMModelProvider(ModelProvider):
                 raise ValueError('Binary classes must be [0, 1]')
             if m.missing_value_policy == 'preprocessor':
                 pp = self._file(m.preprocessing_path, m.preprocessing_sha256)
-                self.preprocessor = joblib.load(pp)
+                # JSON parameters need no sklearn unpickling; joblib remains supported.
+                self.preprocessor = JsonStandardizer.from_file(pp) if pp.suffix == '.json' else joblib.load(pp)
                 if getattr(self.preprocessor, 'n_features_in_', None) != len(FEATURES):
                     raise ValueError('Preprocessing feature count mismatch')
                 if hasattr(self.preprocessor, 'feature_names_in_') and list(self.preprocessor.feature_names_in_) != m.preprocessing_feature_names:
@@ -122,7 +128,16 @@ class LightGBMModelProvider(ModelProvider):
             if transformed.shape != (len(features), len(FEATURES)) or not np.isfinite(transformed).all():
                 raise AppError('INVALID_PREPROCESSING_OUTPUT', 'Preprocessing must produce a finite unchanged shape')
             X = pd.DataFrame(transformed, columns=order, index=features.index)[FEATURES]
-        if hasattr(self.model, 'predict_proba'):
+        if m.feature_name_binding == 'positional':
+            # Order was validated above against the canonical contract; pass a plain array
+            # because the stored names are Column_i rather than the feature names.
+            X = X.to_numpy(dtype=np.float64)
+            if hasattr(self.model, 'predict_proba'):
+                raw = np.asarray(self.model.predict_proba(X, num_threads=1))
+                result = raw[:, 1] if raw.ndim == 2 and raw.shape[1] == 2 else raw
+            else:
+                result = np.asarray(self.model.predict(X, raw_score=False, num_threads=1))
+        elif hasattr(self.model, 'predict_proba'):
             raw = np.asarray(self.model.predict_proba(X, num_threads=1))
             if raw.shape != (len(X), 2) or not np.isfinite(raw).all() or ((raw < 0) | (raw > 1)).any() or not np.allclose(raw.sum(axis=1), 1):
                 raise AppError('INVALID_MODEL_OUTPUT', 'Expected binary class probability matrix')

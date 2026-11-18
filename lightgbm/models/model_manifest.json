@@ -1,0 +1,89 @@
+{
+  "configured": true,
+  "name": "lightgbm",
+  "version": "lightgbm-600trees-seed42",
+  "artifact_format": "lightgbm_native",
+  "artifact_path": "lightgbm_booster.txt",
+  "artifact_sha256": "59064db00521713df5e97cddbc82d18dab1ac007e5959a9c0b472de57babe2b6",
+  "feature_schema_version": "notebook-features-v2",
+  "runtime_pipeline": "authoritative-notebook-v2",
+  "feature_names": [
+    "dist_to_edge_m",
+    "dist_to_u_node_m",
+    "dist_to_v_node_m",
+    "bearing_diff_deg",
+    "bearing_valid",
+    "time_gap_prev_s",
+    "speed_implied_mps",
+    "irregular_gap_flag",
+    "candidate_rank",
+    "dist_minus_best_at_point_m",
+    "num_candidates_at_point",
+    "edge_length_m",
+    "u_node_degree",
+    "v_node_degree",
+    "reverse_edge_exists"
+  ],
+  "feature_dtypes": {
+    "dist_to_edge_m": "float64",
+    "dist_to_u_node_m": "float64",
+    "dist_to_v_node_m": "float64",
+    "bearing_diff_deg": "float64",
+    "bearing_valid": "int64",
+    "time_gap_prev_s": "float64",
+    "speed_implied_mps": "float64",
+    "irregular_gap_flag": "float64",
+    "candidate_rank": "int64",
+    "dist_minus_best_at_point_m": "float64",
+    "num_candidates_at_point": "int64",
+    "edge_length_m": "float64",
+    "u_node_degree": "int64",
+    "v_node_degree": "int64",
+    "reverse_edge_exists": "int64"
+  },
+  "feature_name_binding": "positional",
+  "preprocessing_path": "lightgbm_preprocessing.json",
+  "preprocessing_sha256": "3cd0816e77c16e2f6c590e25bc44dd79937882f369899ec076517c5b3574db6f",
+  "preprocessing_feature_names": [
+    "dist_to_edge_m",
+    "dist_to_u_node_m",
+    "dist_to_v_node_m",
+    "bearing_diff_deg",
+    "bearing_valid",
+    "time_gap_prev_s",
+    "speed_implied_mps",
+    "irregular_gap_flag",
+    "candidate_rank",
+    "dist_minus_best_at_point_m",
+    "num_candidates_at_point",
+    "edge_length_m",
+    "u_node_degree",
+    "v_node_degree",
+    "reverse_edge_exists"
+  ],
+  "preprocessing_training_reference": "lightgbm/models/lightgbm.joblib steps impute + scale (fitted on all labelled training rows)",
+  "missing_value_policy": "preprocessor",
+  "training_configuration_reference": "lightgbm/notebooks/pathsnap_lightgbm.ipynb; lightgbm/results/lightgbm_results.json",
+  "output_type": "binary_probability",
+  "positive_class": 1,
+  "calibration": {
+    "method": "none",
+    "development_validation": "student-test log loss 0.1708 (uncalibrated)"
+  },
+  "creation_metadata": {
+    "seed": 42,
+    "training_library_versions": {
+      "lightgbm": "4.7.0",
+      "scikit-learn": "1.9.1"
+    },
+    "exported_with": {
+      "lightgbm": "4.7.0",
+      "scikit-learn": "1.7.2"
+    },
+    "student_test": {
+      "st_macro_f1": 0.8814488764148278,
+      "st_top1_accuracy": 0.7718959030100334,
+      "st_log_loss": 0.17083736698172497
+    }
+  }
+}

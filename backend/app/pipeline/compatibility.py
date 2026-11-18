@@ -17,9 +17,18 @@ NOTEBOOK_HASH = '9fa739dc905d93e7d46fa31eeb1fad9d4d4916c337ce0bdfec804dec766b1b5
 ROOT = Path(__file__).resolve().parents[3]
 PIPELINE_FILES = ('notebook_features.py', 'reference_alignment.py')
 EXTRACTED_FEATURE_HASH = '970ad1803a1d3f25eefa608ba738ff364e5dac1e6e02e0cb95b6f59c8482d330'
-DEMO_WARNING = ('Notebook demo mode: candidate identities at geometric ties differ from the supplied '
-                'training export in this runtime. Generated features use the unchanged notebook; '
-                'exact dataset parity and resulting model accuracy are not verified.')
+DEMO_WARNING = ('Notebook demo mode: candidates are generated online with the unchanged notebook code. '
+                'On the 10 student-test trips they match the training export on 99.8% of points '
+                '(rare equal-distance ties can differ), so exact dataset parity is not guaranteed.')
+
+
+def source_sha256(path):
+    """SHA-256 of a text source file with line endings normalised to LF.
+
+    Git on Windows (core.autocrlf=true) checks files out with CRLF, which would
+    otherwise change the hash and block feature generation on Windows laptops.
+    """
+    return hashlib.sha256(Path(path).read_bytes().replace(b'\r\n', b'\n')).hexdigest()
 
 
 def runtime_identity():
@@ -30,7 +39,7 @@ def runtime_identity():
 
 def pipeline_hashes():
     base = Path(__file__).parent
-    return {name: hashlib.sha256((base/name).read_bytes()).hexdigest() for name in PIPELINE_FILES}
+    return {name: source_sha256(base/name) for name in PIPELINE_FILES}
 
 
 class NotebookCompatibility:
@@ -78,7 +87,7 @@ class NotebookCompatibility:
             return self.require_ready()
         # User-authorized demo policy permits known numerical/tie drift, never source edits.
         source = Path(__file__).parent/'notebook_features.py'
-        if hashlib.sha256(source.read_bytes()).hexdigest() != EXTRACTED_FEATURE_HASH:
+        if source_sha256(source) != EXTRACTED_FEATURE_HASH:
             raise AppError('FEATURE_PIPELINE_INCOMPATIBLE', 'Notebook source differs from the reviewed demo implementation', 503)
         return {'demo_mode':True, 'warnings':[DEMO_WARNING]}
 

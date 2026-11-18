@@ -27,8 +27,9 @@ def test_original_notebook_and_generated_definitions_are_unchanged():
     notebook = ROOT/'notebooks/PathSnap_Dataset_Pipeline_Final_Pointwise.ipynb'
     assert hashlib.sha256(notebook.read_bytes()).hexdigest() == NOTEBOOK_HASH
     features, alignment = extract()
-    assert (ROOT/'backend/app/pipeline/notebook_features.py').read_text() == features
-    assert (ROOT/'backend/app/pipeline/reference_alignment.py').read_text() == alignment
+    # Explicit UTF-8: Windows would otherwise decode with cp1252 and garble the em dash.
+    assert (ROOT/'backend/app/pipeline/notebook_features.py').read_text(encoding='utf-8') == features
+    assert (ROOT/'backend/app/pipeline/reference_alignment.py').read_text(encoding='utf-8') == alignment
 
 
 def test_explicit_notebook_model_order_is_separate_from_storage_order():
@@ -120,8 +121,8 @@ def test_feature_service_uses_common_validation_for_generated_candidates(synthet
     assert stages==['GENERATING_CANDIDATES']
 
 
-def test_real_evaluator_generation_remains_blocked_and_model_stays_absent():
-    with TestClient(create_app(Settings(notebook_demo_mode=False))) as client:
+def test_real_evaluator_generation_remains_blocked_and_model_stays_absent(tmp_path):
+    with TestClient(create_app(Settings(notebook_demo_mode=False,manifest_path=tmp_path/'absent.json'))) as client:
         metadata=client.get('/api/v1/trips/00000023').json()
         assert metadata['features']['ready'] is False
         assert 'parity' in metadata['features']['reason']

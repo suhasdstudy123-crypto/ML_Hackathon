@@ -1,0 +1,12 @@
+# Keep every checkout byte-identical to the repository (all files are stored with LF).
+# Without this, Windows (core.autocrlf=true) rewrites text files to CRLF, which changes
+# SHA-256 checksums used for notebook provenance, model artifacts and raw trip files.
+* text=auto eol=lf
+
+# Model and data artifacts are never converted.
+*.joblib binary
+*.parquet binary
+*.npz binary
+*.png binary
+lightgbm/models/*.txt -text
+evaluator_test/** -text
