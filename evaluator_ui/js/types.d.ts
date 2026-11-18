@@ -1,0 +1,10 @@
+export interface ModelMetadata {name: 'lightgbm'; version: string | null; ready: boolean; state: string; reason: string | null; feature_schema_version: string; runtime_pipeline: string}
+export interface Health {schema_version: '1.0'; status: string; model_ready: boolean; model: ModelMetadata; trip_count: number; feature_pipeline: string}
+export interface Geometry {type: 'Point' | 'LineString'; coordinates: number[] | number[][]}
+export interface GeoFeature {type: 'Feature'; geometry: Geometry; properties: Record<string, any>}
+export interface FeatureCollection {type: 'FeatureCollection'; features: GeoFeature[]}
+export interface TripMetadata {schema_version: '1.0'; trip_id: string; observation_count: number; node_count: number; arc_count: number; duration_seconds: number; start_timestamp: number; end_timestamp: number; large_gaps: number; nonincreasing_timestamps: number; features: {ready: boolean; reason: string | null} | null}
+export interface Preview {schema_version: '1.0'; trip_id: string; metadata: TripMetadata; geometry: {raw_gps: FeatureCollection; road_network: FeatureCollection}; road_preview: {complete: boolean; returned_arc_count: number; matching_arc_count: number}; warnings: string[]}
+export interface Job {schema_version: '1.0'; job_id: string; trip_id: string; status: string; duration_ms: number | null; error: {code: string; message: string} | null; stages: {stage: string; at: string}[]}
+export interface Result {schema_version: '1.0'; job_id: string; trip_id: string; status: 'COMPLETED'; model: ModelMetadata; observations: {count: number}; geometry: {classifier_route: FeatureCollection; hmm_route: FeatureCollection}; predictions: {classifier_arc_sequence: number[]; hmm_arc_sequence: number[]}; diagnostics: {route_continuity: number; decoder_time_ms: number | null; transition_breaks: {observation_index: number; reason: string}[]}; metrics: {top1_accuracy: number | null; route_continuity: number; sequence_jaccard: number | null; inference_time_ms: number; candidate_miss_rate: number | null}; warnings: string[]}
+declare global {var L: any;}
