@@ -138,3 +138,27 @@ def test_preserved_artifact_checksums():
     root=Path(__file__).resolve().parents[2]
     checks=json.loads((root/'docs/ARTIFACT_CHECKSUMS.json').read_text())
     assert all(hashlib.sha256((root/p).read_bytes()).hexdigest()==value for p,value in checks.items())
+
+def test_job_retention_and_shutdown(synthetic_environment):
+    from backend.app.core.jobs import JobManager
+    from backend.app.services.inference_service import InferenceService
+    from backend.app.services.evaluation_service import EvaluationService
+    settings,_=synthetic_environment;trips=TripService(settings)
+    jobs=JobManager(settings,InferenceService(trips,FeatureService(settings.feature_dir),SyntheticUnitTestProvider()),EvaluationService(trips))
+    try:
+        j=jobs.submit('00000001',False,'test-request');deadline=monotonic()+5
+        while jobs.get(j['job_id'])['status'] not in ['COMPLETED','FAILED'] and monotonic()<deadline:sleep(.01)
+        assert jobs.get(j['job_id'])['status']=='COMPLETED'
+        with jobs.lock:jobs.jobs[j['job_id']]['_updated']=monotonic()-settings.retention_seconds-1
+        with pytest.raises(AppError,match='expired'):jobs.get(j['job_id'])
+    finally:jobs.shutdown()
+    with pytest.raises(AppError,match='shutting down'):jobs.submit('00000001',False,'test-request')
+
+def test_corrupt_feature_source_fails_with_explicit_error(synthetic_environment):
+    settings,_=synthetic_environment
+    (settings.feature_dir/'inference_features.parquet').write_bytes(b'SYNTHETIC_CORRUPT_UNIT_TEST')
+    with TestClient(create_app(settings,SyntheticUnitTestProvider())) as c:
+        response=c.post('/api/v1/reconstructions',json={'trip_id':'00000001'})
+        assert response.status_code==503
+        assert response.json()['error']['code']=='INVALID_FEATURE_SCHEMA'
+        assert 'Traceback' not in response.text

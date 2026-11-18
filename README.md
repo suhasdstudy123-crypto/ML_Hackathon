@@ -1,112 +1,101 @@
-# PathSnap: Distributed Map-Matching & Sequential Route Reconstruction
-**PES University - Department of Computer Science and Engineering**  
-**Course:** UE24CS352A Machine Learning  
+# PathSnap — Fleet Route Intelligence
 
----
+Explore real trip GPS observations and their directed road networks in a Leaflet/OpenStreetMap dashboard. FastAPI runs on Laptop 1; Laptop 2 runs the static dashboard and connects over a configurable LAN URL.
 
-## 📌 Project Overview
-PathSnap is an end-to-end distributed machine learning system engineered to reconstruct accurate vehicle routes from noisy GPS trajectories matched against a complex geographical road network graph.
+**Current state:** previews work for all ten reserved evaluator trips. No trained LightGBM artifact is supplied, so `model_ready=false` and reconstruction returns HTTP 503 `MODEL_NOT_READY`. No model was trained, substituted or simulated. Exact evaluator features and the original authoritative feature/alignment generator are also still required.
 
-### Key Architectural Highlights:
-1. **Candidate Retrieval & Spatial Indexing:** $k$-d tree with 5-point segment interpolation providing **98.63% candidate recall** with low miss rate ($1.37\%$).
-2. **Feature Engineering:** 10 geometric, kinematic, and topological features (including geodesic orthogonal projection, angular heading divergence, speed, and time delta).
-3. **5 Model Family Benchmarking:** Logistic Regression, Decision Tree, Random Forest, HistGradientBoosting, and MLP neural networks evaluated using 5-Fold **GroupKFold** across trips to strictly prevent data leakage.
-4. **Bayesian Hyperparameter Optimisation:** Optuna TPE tuning over learning rate, tree depth, leaf limits, and L2 regularization, boosting cross-validation Macro F1 to **0.9078**.
-5. **HMM & Viterbi Decoding:** Emission probability derived from calibrated model score + spatial distance; topological transition model penalizing network disconnects. Achieved **85.45% Top-1 Accuracy**, **98.50% Route Continuity**, and **79.61% Sequence Jaccard**.
-6. **Two-Laptop Distributed Deployment:**
-   - **Laptop 1:** FastAPI backend hosting model weights, candidate pipeline, and server-side ground-truth evaluation.
-   - **Laptop 2:** Interactive Leaflet / Folium dashboard displaying the 10 evaluation trips, comparative trajectory overlays, and live performance metrics.
-
----
-
-## 📂 Repository Structure
-```
-PathSnap/
-├── README.md                           # Documentation & execution instructions
-├── requirements.txt                    # Project dependencies
-├── build_cache.py                      # Preprocessing and dataset caching script
-├── feature_engineering.py              # Spatial indexing, candidate sampling & feature extractor
-├── train_and_evaluate.py               # 5-model benchmarking framework & evaluation metrics
-├── bayesian_tuning.py                  # Optuna Bayesian hyperparameter optimisation
-├── hmm_viterbi.py                      # Hidden Markov Model & Viterbi path decoder
-├── generate_maps.py                    # Folium interactive map visualisations
-├── api_server.py                       # FastAPI backend server (Laptop 1)
-├── evaluator_ui/                       # Evaluator Frontend interface (Laptop 2)
-│   └── index.html
-├── data_cache/                         # Preprocessed datasets and summary CSV tables
-│   ├── model_comparison_table.csv
-│   ├── tuned_vs_untuned_comparison.csv
-│   └── hmm_summary_comparison.csv
-├── models/                             # Saved serialized model artifacts
-│   ├── best_tuned_histgradientboosting.joblib
-│   ├── logistic_regression.joblib
-│   ├── decision_tree.joblib
-│   └── random_forest.joblib
-├── model_plots/                        # Evaluation figures and curves
-│   ├── macro_f1_comparison.png
-│   ├── top1_accuracy_comparison.png
-│   ├── log_loss_comparison.png
-│   └── bayesian_opt_convergence.png
-└── maps/                               # Interactive Folium map HTML files
-    ├── trip_00000000_reconstructed.html
-    └── trip_00000007_reconstructed.html
+```text
+Browser (Laptop 2) → versioned HTTP API (Laptop 1)
+                         ├─ TripService → track / nodes / arcs → safe preview
+                         └─ bounded inference job
+                              → exact authoritative features (no labels)
+                              → LightGBMModelProvider (pending trained artifact)
+                              → directed Viterbi + classifier sequences
+                              → EvaluationService (protected .route, aggregates only)
 ```
 
----
+## Setup and startup
 
-## ⚙️ Installation & Setup
+Python 3.11+ and Node.js 22+ recommended. The existing scientific requirements are retained; LightGBM is optional until a real artifact is supplied.
 
-1. **Clone the repository:**
-   ```bash
-   git clone <your-github-repo-url>
-   cd PathSnap
-   ```
-
-2. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
----
-
-## 🚀 Two-Laptop Deployment Execution
-
-### Laptop 1 (Model and API Server)
-Run the FastAPI backend on the local network:
 ```bash
-python -m uvicorn api_server:app --host 0.0.0.0 --port 8000
+python3 -m venv .venv
+# macOS/Linux
+source .venv/bin/activate
+# Windows PowerShell: .venv\Scripts\Activate.ps1
+python -m pip install -r requirements-dev.txt
+npm --prefix evaluator_ui ci
+npm --prefix evaluator_ui run typecheck
+npm --prefix evaluator_ui run build
 ```
-- Note down Laptop 1's local IP address (e.g. `192.168.1.45`) using `ipconfig`.
-- Verify the server is running by opening `http://localhost:8000/docs` in your browser.
 
-### Laptop 2 (Evaluator Dashboard UI)
-1. Open `evaluator_ui/index.html` in any modern web browser.
-2. In the **API Endpoint URL** field, enter Laptop 1's IP address (e.g., `http://192.168.1.45:8000`).
-3. Click **Test Connection** — the indicator will turn green.
-4. Select any of the 10 reserved evaluation trips from the dropdown.
-5. Click **Run Evaluation** to view the live matched trajectory, reconstructed route, and performance metrics.
+Run from the repository root. On Laptop 1, set the exact frontend origin for Laptop 2:
 
----
+```bash
+export PATHSNAP_CORS_ORIGINS=http://192.168.1.21:5173
+python -m uvicorn api_server:app --host 0.0.0.0 --port 8000 --workers 1
+```
 
-## 📊 Summary of Experimental Results
+On Laptop 2, serve **only the built dashboard directory**, never the repository root:
 
-### 1. Overall Model Comparison (5 Algorithm Families)
-| Model | Algorithm Family | CV Macro F1 | Top-1 Accuracy | Route Continuity | Student-Test Macro F1 | Log Loss | Inference Time |
-| :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
-| **HistGradientBoosting** | Boosting | **0.8231** | **79.42%** | **0.6265** | **0.8755** | **0.0925** | 0.359s |
-| Random Forest | Ensemble | 0.8213 | 79.39% | 0.6289 | 0.8785 | 0.0913 | 0.387s |
-| Decision Tree | Tree-based | 0.8107 | 79.07% | 0.6252 | 0.8746 | 0.1004 | 0.018s |
-| MLP | Neural Network | 0.8164 | 78.99% | 0.6294 | 0.8744 | 0.0951 | 0.147s |
-| Logistic Regression | Linear/Probabilistic | 0.8050 | 77.39% | 0.6111 | 0.8367 | 0.1338 | 0.014s |
+```bash
+python -m http.server 5173 --bind 0.0.0.0 --directory evaluator_ui/dist
+```
 
-### 2. Bayesian Tuning (Untuned vs Tuned)
-| Configuration | CV Macro F1 | Student-Test Top-1 Accuracy | Student-Test Macro F1 | Log Loss | Inference Time |
-| :--- | :---: | :---: | :---: | :---: | :---: |
-| Untuned Baseline (Default) | 0.8231 | 79.42% | 0.8755 | 0.0925 | 0.359s |
-| **Bayesian Tuned (TPE Optuna)** | **0.9078** | **79.69%** | **0.8774** | **0.0910** | 0.646s |
+Open `http://localhost:5173` on Laptop 2. Enter Laptop 1's actual address, such as `http://192.168.1.20:8000`, in **Backend API URL**, then connect. The API URL is saved locally in that browser; a `?api=http%3A%2F%2F192.168.1.20%3A8000` URL parameter can also supply it. The dashboard does not assume that its own host is the backend.
 
-### 3. Route Reconstruction (Classifier vs Classifier + HMM Viterbi)
-| Method | Mean Top-1 Accuracy | Mean Route Continuity | Mean Sequence Jaccard |
-| :--- | :---: | :---: | :---: |
-| Classifier-Only Predictions | 81.63% | 88.82% | 68.73% |
-| **Classifier + HMM/Viterbi Decoding** | **85.45%** | **98.50%** | **79.61%** |
+For a single-laptop check, default CORS accepts `http://localhost:5173` and `http://127.0.0.1:5173`. API documentation is at `http://localhost:8000/docs`. Legacy `api_server:app` startup remains supported. See [two-laptop deployment](docs/DEPLOYMENT.md) for Windows commands, firewall checks, origins and troubleshooting.
+
+## Dataset expectations
+
+```text
+evaluator_test/evaluator_test/<8-digit-trip-id>/
+  <trip-id>.track   # longitude latitude timestamp, ordered observations
+  <trip-id>.nodes   # longitude latitude, node row = node ID
+  <trip-id>.arcs    # directed start/end node row IDs, arc row = arc ID
+  <trip-id>.route   # protected reference sequence; evaluation only
+
+data/authoritative/ # ignored, private on backend laptop
+  train_features.parquet
+  student_test_features.parquet
+  train_alignment_diagnostics.parquet
+  student_test_alignment_diagnostics.parquet
+  train_diagnostics.csv
+  student_test_diagnostics.csv
+  feature_scaler.joblib
+```
+
+Install the seven supplied artifacts from the original ZIP, preserving bytes:
+
+```bash
+python scripts/import_dataset.py "/path/to/outputs (1).zip"
+python scripts/verify_artifacts.py
+```
+
+The supplied fifteen-feature Parquet schema differs from the preserved historical ten-feature NPZ pipeline. **Do not regenerate or replace either dataset to make them agree.** See [the data contract](docs/DATA_CONTRACT.md), exact [schema inspection](docs/DATA_SCHEMA_INSPECTION.json), and [repository audit](docs/REPOSITORY_AUDIT.md). The ten reserved evaluator trips have no feature rows in the supplied ZIP. Their raw previews do not require feature data or a model.
+
+## Connect your trained model later
+
+1. Supply the original authoritative feature generator or exact evaluator `inference_features.parquet`, with `trip_bindings.json` raw-file hashes as specified in [MODEL_INTEGRATION](docs/MODEL_INTEGRATION.md). Keep labels outside the inference projection.
+2. Train separately on permitted data using the fifteen features in canonical order. Export a native LightGBM Booster or joblib LightGBM classifier; no unrelated classifier is accepted.
+3. Copy `models/model_manifest.example.json` to `models/model_manifest.json`. Set the artifact format/path/hash/version, input contract, preprocessing policy/provenance, training reference and `configured=true`.
+4. Install `requirements-model.txt`, run `python scripts/validate_model.py --trip 00000023`, then restart the backend and check readiness and trip feature availability.
+5. Run real inference/evaluation integration tests after artifacts are available. Existing frontend layers and job monitoring need no rewrite.
+
+No training command is part of backend startup. Do not use a placeholder model or the historical HGB weights. The original scaler has a bearing-column ordering difference; use its documented explicit order only if the trained model expects that transform.
+
+## Validation
+
+```bash
+python -m pytest -q
+npm --prefix evaluator_ui test
+npm --prefix evaluator_ui run typecheck
+npm --prefix evaluator_ui run build
+python scripts/verify_artifacts.py
+```
+
+Tests use explicitly named synthetic fixtures only under test directories; production endpoints never return synthetic successes. Legacy root `test_*.py` scripts are preserved exploratory utilities requiring unavailable Windows training paths and are excluded from pytest discovery. [Integration status](docs/INTEGRATION_STATUS.md) lists actual results and untested boundaries.
+
+The original training, EDA, inspection and HGB/HMM experiment scripts, model weights, NPZ caches, figures and HTML maps remain intact and are not imported or served by the production app. The original README is retained at [docs/history/README.original.md](docs/history/README.original.md). `TECHNICAL_REPORT.md` describes historical experiments, not verified current LightGBM capability; its old claim that API labels never leaked was contradicted by the audit and is fixed in the new API. Historical experiment metrics are not displayed as current results.
+
+Further documentation: [API](docs/API_CONTRACT.md) · [Model handoff](docs/MODEL_INTEGRATION.md) · [Deployment](docs/DEPLOYMENT.md) · [Status and limitations](docs/INTEGRATION_STATUS.md).

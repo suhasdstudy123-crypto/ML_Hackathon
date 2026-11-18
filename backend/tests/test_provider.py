@@ -15,6 +15,7 @@ class SyntheticTestBooster:
     objective='binary sigmoid:1'
     def __init__(self,model_file):
         assert open(model_file).read()=='SYNTHETIC_UNIT_TEST_ONLY'
+    def num_trees(self):return 2
     def num_feature(self):return 15
     def feature_name(self):return self.names
     def dump_model(self):return {'objective':self.objective}
@@ -74,3 +75,24 @@ def test_preprocessor_explicit_order_is_restored(synthetic_manifest,synthetic_fe
     monkeypatch.setattr('backend.app.models.lightgbm_provider.joblib.load',lambda p:SyntheticPreprocessor())
     p=LightGBMModelProvider(path,path.parent);p.load();assert p.is_ready()
     p.predict_candidate_scores(synthetic_features)
+
+def test_joblib_classifier_loading_uses_predict_proba(synthetic_manifest,monkeypatch,synthetic_features):
+    path,m=synthetic_manifest
+    class SyntheticJoblibClassifier:
+        classes_=np.array([0,1])
+        def __init__(self):self.booster_=SyntheticTestBooster(str(path.parent/m['artifact_path']))
+        def predict_proba(self,X,**kwargs):return np.tile([.25,.75],(len(X),1))
+    monkeypatch.setitem(sys.modules,'lightgbm',SimpleNamespace(Booster=SyntheticTestBooster,LGBMClassifier=SyntheticJoblibClassifier))
+    monkeypatch.setattr('backend.app.models.lightgbm_provider.joblib.load',lambda p:SyntheticJoblibClassifier())
+    m['artifact_format']='joblib_lightgbm';path.write_text(json.dumps(m))
+    p=LightGBMModelProvider(path,path.parent);p.load();assert p.is_ready()
+    assert np.all(p.predict_candidate_scores(synthetic_features)==.75)
+
+def test_joblib_unrelated_model_rejected(synthetic_manifest,monkeypatch):
+    path,m=synthetic_manifest;m['artifact_format']='joblib_lightgbm';path.write_text(json.dumps(m))
+    monkeypatch.setattr('backend.app.models.lightgbm_provider.joblib.load',lambda p:object())
+    p=LightGBMModelProvider(path,path.parent);p.load();assert not p.is_ready()
+
+def test_empty_native_artifact_is_not_trained(synthetic_manifest,monkeypatch):
+    path,_=synthetic_manifest;monkeypatch.setattr(SyntheticTestBooster,'num_trees',lambda s:0)
+    p=LightGBMModelProvider(path,path.parent);p.load();assert not p.is_ready()

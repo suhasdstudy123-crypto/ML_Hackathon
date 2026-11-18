@@ -12,7 +12,10 @@ class FeatureService:
         for name in ['train_features.parquet', 'student_test_features.parquet', 'inference_features.parquet']:
             p = self.root / name
             if p.is_file():
-                ids = pd.read_parquet(p, columns=['trip_id'], filters=[('trip_id', '==', trip_id)])
+                try:
+                    ids = pd.read_parquet(p, columns=['trip_id'], filters=[('trip_id', '==', trip_id)])
+                except Exception as exc:
+                    raise AppError('INVALID_FEATURE_SCHEMA', 'Authoritative feature source is unreadable or missing trip identifiers', 503) from exc
                 if len(ids): return p
         return None
 

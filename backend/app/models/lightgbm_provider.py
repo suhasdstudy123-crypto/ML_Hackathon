@@ -30,7 +30,7 @@ class Manifest(BaseModel):
     preprocessing_feature_names: list[str] | None = None
     preprocessing_training_reference: str | None = None
     missing_value_policy: Literal['reject', 'native_missing', 'preprocessor'] = 'native_missing'
-    training_configuration_reference: str
+    training_configuration_reference: str = Field(min_length=1)
     output_type: Literal['binary_probability'] = 'binary_probability'
     positive_class: Literal[1] = 1
     calibration: dict = Field(default_factory=dict)
@@ -81,6 +81,8 @@ class LightGBMModelProvider(ModelProvider):
                 if not isinstance(model, (lgb.Booster, lgb.LGBMClassifier)):
                     raise ValueError('Artifact is not a LightGBM Booster or LGBMClassifier')
             booster = model if isinstance(model, lgb.Booster) else model.booster_
+            if booster.num_trees() < 1:
+                raise ValueError('Model contains no trained trees')
             if booster.num_feature() != len(FEATURES) or booster.feature_name() != FEATURES:
                 raise ValueError('Model feature count, names or order differ from manifest')
             if not str(booster.dump_model().get('objective', '')).startswith('binary '):
