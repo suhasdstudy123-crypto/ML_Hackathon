@@ -1,10 +1,8 @@
 """Compare reviewed notebook algorithms with immutable supplied data; never fit/write datasets."""
 import argparse
-from dataclasses import asdict
 import hashlib
 import json
 from pathlib import Path
-import platform
 import sys
 import time
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -12,6 +10,7 @@ import numpy as np
 import pandas as pd
 import scipy
 from backend.app.pipeline.notebook_features import TripData, FEATURE_COLUMNS, build_trip_table
+from backend.app.pipeline.compatibility import runtime_identity, pipeline_hashes
 from backend.app.pipeline.reference_alignment import TripData as ReferenceTrip, align_gps_to_route
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -44,7 +43,7 @@ def main():
     started = time.perf_counter()
     report = {'notebook_sha256': hashlib.sha256((ROOT/'notebooks/PathSnap_Dataset_Pipeline_Final_Pointwise.ipynb').read_bytes()).hexdigest(),
               'feature_order': FEATURE_COLUMNS, 'tolerance': {'rtol': 1e-12, 'atol': 1e-8},
-              'versions': {'python': platform.python_version(), 'numpy': np.__version__, 'pandas': pd.__version__, 'scipy': scipy.__version__},
+              'versions': runtime_identity(), 'pipeline_sha256': pipeline_hashes(),
               'source_artifact_sha256': {}, 'trips': []}
     for split in ['train', 'student_test']:
         fp = args.feature_dir/f'{split}_features.parquet'
@@ -75,6 +74,8 @@ def main():
             passed = not (feature_diff or alignment_diff or label_diff)
             report['trips'].append({'split':split,'trip_id':tid,'observations':len(trip.track),'candidate_rows':len(generated),
                 'features_match':not feature_diff,'alignment_match':not alignment_diff,'labels_match':not label_diff,
+                'candidate_identity_mismatches': int((expected.candidate_edge_id.to_numpy() != generated.candidate_edge_id.to_numpy()).sum()),
+                'candidate_set_mismatch_observations': int((expected.groupby('point_idx').candidate_edge_id.apply(set) != generated.groupby('point_idx').candidate_edge_id.apply(set)).sum()),
                 'differences':{'features':feature_diff,'alignment':alignment_diff,'labels':label_diff},
                 'raw_sha256':{ext:hashlib.sha256((raw/f'{tid}.{ext}').read_bytes()).hexdigest() for ext in ['nodes','arcs','track','route']},
                 'duration_seconds':round(time.perf_counter()-tick,4)})

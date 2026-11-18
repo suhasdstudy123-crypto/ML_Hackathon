@@ -22,13 +22,15 @@ configure_logging(); log=logging.getLogger('pathsnap')
 
 def create_app(settings=None, provider=None):
     settings=settings or Settings()
-    trips=TripService(settings); features=FeatureService(settings.feature_dir)
+    trips=TripService(settings); features=FeatureService(settings.feature_dir,settings.parity_report,settings.notebook_demo_mode)
     provider=provider or LightGBMModelProvider(settings.manifest_path,settings.feature_dir)
     inference=InferenceService(trips,features,provider); evaluation=EvaluationService(trips)
 
     @asynccontextmanager
     async def lifespan(app):
         # Startup validates artifacts before requests are accepted.
+        if settings.notebook_demo_mode:
+            log.warning('notebook_demo_mode_enabled: exact candidate parity is not verified')
         provider.load()
         app.state.jobs=JobManager(settings,inference,evaluation)
         yield
@@ -72,7 +74,7 @@ def create_app(settings=None, provider=None):
     def health(status):
         ids=trips.ids()
         return {'schema_version':'1.0','status':status,'model_ready':provider.is_ready(),'model':provider.get_metadata(),
-                'trip_count':len(ids),'feature_pipeline':'precomputed-authoritative-v1; raw generator pending'}
+                'trip_count':len(ids),'feature_pipeline':'authoritative-notebook-v2; demo mode with known parity differences' if settings.notebook_demo_mode else 'authoritative-notebook-v2; strict parity required'}
 
     @app.get('/',response_model=Health)
     @app.get('/api/v1/health/live',response_model=Health)

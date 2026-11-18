@@ -24,6 +24,7 @@ class EvaluationService:
             raise AppError('INVALID_REFERENCE_DATA', 'Protected evaluation data could not be validated', 500) from exc
         pred = set(predicted)
         metrics = {'sequence_jaccard': len(pred & reference)/len(pred | reference)}
-        # Original sequence-aware aligner is not supplied. Do not substitute nearest-reference labels.
+        # Supplied notebook alignment does not yet fully reproduce authoritative diagnostics.
+        # Do not substitute a drifting pseudo-label estimate for verified evaluation.
         log.info('evaluation_complete', extra={'trip_id': trip.trip_id})
-        return metrics, ['Top-1 accuracy and candidate miss rate unavailable until the authoritative reference alignment pipeline is supplied; Jaccard compares unique arc sets']
+        return metrics, ['Top-1 accuracy and candidate miss rate unavailable until notebook alignment parity is verified; Jaccard compares unique arc sets']

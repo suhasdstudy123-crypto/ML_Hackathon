@@ -2,13 +2,13 @@
 
 Explore real trip GPS observations and their directed road networks in a Leaflet/OpenStreetMap dashboard. FastAPI runs on Laptop 1; Laptop 2 runs the static dashboard and connects over a configurable LAN URL.
 
-**Current state:** previews work for all ten reserved evaluator trips. No trained LightGBM artifact is supplied, so `model_ready=false` and reconstruction returns HTTP 503 `MODEL_NOT_READY`. No model was trained, substituted or simulated. Exact evaluator features and the original authoritative feature/alignment generator are also still required.
+**Current state:** previews work for all ten reserved evaluator trips. No trained LightGBM artifact is supplied, so `model_ready=false` and reconstruction returns HTTP 503 `MODEL_NOT_READY`. No model was trained, substituted or simulated. The supplied notebook is integrated for route-blind online feature generation in user-authorized demo mode. Candidate choices at geometric ties differ from the saved training export; this known limitation is documented.
 
 ```text
 Browser (Laptop 2) → versioned HTTP API (Laptop 1)
                          ├─ TripService → track / nodes / arcs → safe preview
                          └─ bounded inference job
-                              → exact authoritative features (no labels)
+                              → notebook candidates/features (no labels; demo parity warning)
                               → LightGBMModelProvider (pending trained artifact)
                               → directed Viterbi + classifier sequences
                               → EvaluationService (protected .route, aggregates only)
@@ -72,17 +72,17 @@ python scripts/import_dataset.py "/path/to/outputs (1).zip"
 python scripts/verify_artifacts.py
 ```
 
-The supplied fifteen-feature Parquet schema differs from the preserved historical ten-feature NPZ pipeline. **Do not regenerate or replace either dataset to make them agree.** See [the data contract](docs/DATA_CONTRACT.md), exact [schema inspection](docs/DATA_SCHEMA_INSPECTION.json), and [repository audit](docs/REPOSITORY_AUDIT.md). The ten reserved evaluator trips have no feature rows in the supplied ZIP. Their raw previews do not require feature data or a model.
+The supplied fifteen-feature Parquet schema differs from the preserved historical ten-feature NPZ pipeline. **Do not regenerate or replace either dataset to make them agree.** See [the data contract](docs/DATA_CONTRACT.md), exact [schema inspection](docs/DATA_SCHEMA_INSPECTION.json), and [repository audit](docs/REPOSITORY_AUDIT.md). The ten reserved evaluator trips have no feature rows in the supplied ZIP. Their raw previews do not require feature data or a model; notebook features are generated when genuine inference is requested after model delivery.
 
 ## Connect your trained model later
 
-1. Supply the original authoritative feature generator or exact evaluator `inference_features.parquet`, with `trip_bindings.json` raw-file hashes as specified in [MODEL_INTEGRATION](docs/MODEL_INTEGRATION.md). Keep labels outside the inference projection.
+1. The supplied notebook now generates evaluator features directly from track/nodes/arcs. Demo mode is enabled by default as requested. Set `PATHSNAP_NOTEBOOK_DEMO_MODE=0` to enforce strict parity, or supply verified precomputed features with raw-file bindings. See [notebook integration](docs/NOTEBOOK_INTEGRATION.md).
 2. Train separately on permitted data using the fifteen features in canonical order. Export a native LightGBM Booster or joblib LightGBM classifier; no unrelated classifier is accepted.
 3. Copy `models/model_manifest.example.json` to `models/model_manifest.json`. Set the artifact format/path/hash/version, input contract, preprocessing policy/provenance, training reference and `configured=true`.
 4. Install `requirements-model.txt`, run `python scripts/validate_model.py --trip 00000023`, then restart the backend and check readiness and trip feature availability.
 5. Run real inference/evaluation integration tests after artifacts are available. Existing frontend layers and job monitoring need no rewrite.
 
-No training command is part of backend startup. Do not use a placeholder model or the historical HGB weights. The original scaler has a bearing-column ordering difference; use its documented explicit order only if the trained model expects that transform.
+No training command is part of backend startup. Do not use a placeholder model or the historical HGB weights. The explicit notebook model/scaler order places `bearing_diff_deg` before `bearing_valid`. The new `notebook-features-v2` manifest uses that order; the earlier provisional v1 model contract is rejected. Physical Parquet order remains unchanged.
 
 ## Validation
 

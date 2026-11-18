@@ -89,7 +89,7 @@ class ReconstructionRequest(Strict):
     trip_id: str=Field(pattern=r'^[0-9]{8}$')
     use_hmm: bool=Field(default=True,strict=True)
 
-Stage=Literal['QUEUED','PREPARING_DATA','PREPARING_FEATURES','SCORING_CANDIDATES','DECODING_ROUTE','EVALUATING','COMPLETED','FAILED']
+Stage=Literal['QUEUED','PREPARING_DATA','PREPARING_FEATURES','GENERATING_CANDIDATES','SCORING_CANDIDATES','DECODING_ROUTE','EVALUATING','COMPLETED','FAILED']
 class StageEvent(Strict):
     stage: Stage
     at: str

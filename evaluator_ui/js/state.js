@@ -8,7 +8,7 @@ export function reconstructionState(health, metadata, busy = false) {
 }
 export function formatFraction(value) {return value == null ? '—' : `${(value * 100).toFixed(1)}%`;}
 export function formatDuration(value) {return value == null ? '—' : `${value.toFixed(0)} ms`;}
-export const stageLabel = value => ({QUEUED: 'Queued', PREPARING_DATA: 'Loading trip data', PREPARING_FEATURES: 'Validating candidate features', SCORING_CANDIDATES: 'Scoring with LightGBM', DECODING_ROUTE: 'Decoding directed route', EVALUATING: 'Evaluating on the server', COMPLETED: 'Reconstruction complete', FAILED: 'Reconstruction failed'})[value] || value;
+export const stageLabel = value => ({QUEUED: 'Queued', PREPARING_DATA: 'Loading trip data', PREPARING_FEATURES: 'Validating candidate features', GENERATING_CANDIDATES: 'Generating notebook candidates', SCORING_CANDIDATES: 'Scoring with LightGBM', DECODING_ROUTE: 'Decoding directed route', EVALUATING: 'Evaluating on the server', COMPLETED: 'Reconstruction complete', FAILED: 'Reconstruction failed'})[value] || value;
 /** Bounded polling; retry network errors only, never repeat the heavy POST. */
 /** @param {any} api @param {string} id @param {(job: import('./types').Job) => void} onStage
  * @param {{isCancelled?: () => boolean, wait?: (ms: number) => Promise<any>, maxPolls?: number}} options */

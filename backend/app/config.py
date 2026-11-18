@@ -9,6 +9,8 @@ class Settings:
     trip_dir: Path = field(default_factory=lambda: Path(os.getenv('PATHSNAP_TRIP_DIR', ROOT / 'evaluator_test/evaluator_test')))
     feature_dir: Path = field(default_factory=lambda: Path(os.getenv('PATHSNAP_FEATURE_DIR', ROOT / 'data/authoritative')))
     manifest_path: Path = field(default_factory=lambda: Path(os.getenv('PATHSNAP_MODEL_MANIFEST', ROOT / 'models/model_manifest.json')))
+    notebook_demo_mode: bool = field(default_factory=lambda: os.getenv('PATHSNAP_NOTEBOOK_DEMO_MODE', '1') == '1')
+    parity_report: Path = field(default_factory=lambda: Path(os.getenv('PATHSNAP_PARITY_REPORT', ROOT / 'docs/NOTEBOOK_PARITY.json')))
     origins: tuple = field(default_factory=lambda: tuple(x.strip() for x in os.getenv('PATHSNAP_CORS_ORIGINS', 'http://localhost:5173,http://127.0.0.1:5173').split(',') if x.strip()))
     max_workers: int = field(default_factory=lambda: int(os.getenv('PATHSNAP_MAX_WORKERS', '1')))
     max_jobs: int = field(default_factory=lambda: int(os.getenv('PATHSNAP_MAX_JOBS', '16')))

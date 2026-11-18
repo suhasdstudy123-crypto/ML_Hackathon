@@ -2,17 +2,17 @@
 
 Inspected 18 November 2026 from user-provided `outputs (1).zip`. The seven original artifacts were copied byte-for-byte into ignored `data/authoritative/`. `AUTHORITATIVE_CHECKSUMS.json` records their SHA-256 values; `DATA_SCHEMA_INSPECTION.json` records every column, dtype and null/infinity count. The ZIP and historical caches remain unchanged.
 
-## Ordered predictive features — authoritative-parquet-v1
+## Ordered predictive features — notebook-features-v2
 
-This is the inference allowlist, in original Parquet order after removing metadata and label. Final training must explicitly adopt this order, or the model will be rejected. This is an integration contract, not a claim that an unsupplied training script already uses it.
+This is the inference allowlist in the notebook’s explicit FEATURE_COLUMNS order. Physical Parquet storage order is different. Final training must explicitly adopt this order, or the model will be rejected. This is an integration contract, not a claim that an unsupplied training script already uses it.
 
 | Order | Name | dtype | Meaning / inference availability |
 |---|---|---|---|
 | 1 | dist_to_edge_m | float64 | GPS-to-candidate segment distance, metres |
 | 2 | dist_to_u_node_m | float64 | GPS-to-directed start node distance, metres |
 | 3 | dist_to_v_node_m | float64 | GPS-to-directed end node distance, metres |
-| 4 | bearing_valid | int64 | Bearing validity indicator |
-| 5 | bearing_diff_deg | float64 | Absolute bearing difference, degrees; nullable |
+| 4 | bearing_diff_deg | float64 | Absolute bearing difference, degrees; nullable |
+| 5 | bearing_valid | int64 | Bearing validity indicator |
 | 6 | time_gap_prev_s | float64 | Previous GPS time gap, seconds; nullable at first observation |
 | 7 | speed_implied_mps | float64 | GPS implied speed, metres/second; nullable |
 | 8 | irregular_gap_flag | float64 | Irregular time interval flag; nullable |
@@ -24,9 +24,9 @@ This is the inference allowlist, in original Parquet order after removing metada
 | 14 | v_node_degree | int64 | End-node degree; convention needs generator |
 | 15 | reverse_edge_exists | int64 | Whether reverse directed edge exists |
 
-All fields are numerical. Integer indicators remain numerical (no categorical coding inferred). Data are unscaled physical values as shown by coordinate-distance magnitudes. Exact distance projection, tie breaking, heading behavior, graph degree semantics, irregular-gap threshold and candidate generation cannot be recovered reliably from column names. **The original generator is missing. Do not recreate it by guessing.**
+All fields are numerical. Integer indicators remain numerical (no categorical coding inferred). Data are unscaled physical values as shown by coordinate-distance magnitudes. The supplied notebook now defines these calculations exactly: per-trip node-centroid equirectangular projection, great-circle bearings, haversine speeds, incident directed-arc endpoint degree counts, and irregular gap deviation >0.25 seconds from 1 Hz. Candidate retrieval uses a midpoint KD-tree pool of 20 and segment-distance reranking to five candidates. Definitions were extracted unchanged; no replacement generator was invented. Exact candidate identity reproduction nevertheless fails at ties in this runtime; see NOTEBOOK_INTEGRATION.md.
 
-The Parquet column order is: `trip_id`, `point_idx`, `candidate_edge_id`, `timestamp`, the 15 features above, `label` (20 columns total). See machine-readable inspection for every dtype. `trip_id` is string/object and must retain leading zeros; `point_idx` and `candidate_edge_id` are int64; `timestamp` is float64. Timestamp is available at inference but deliberately used only as observation metadata. Labels and all alignment diagnostic columns are forbidden in model inputs.
+The Parquet column order is: `trip_id`, `point_idx`, `candidate_edge_id`, `timestamp`, the 15 feature columns with bearing_valid before bearing_diff_deg, `label` (20 columns total). See machine-readable inspection for every dtype. `trip_id` is string/object and must retain leading zeros; `point_idx` and `candidate_edge_id` are int64; `timestamp` is float64. Timestamp is available at inference but deliberately used only as observation metadata. Labels and all alignment diagnostic columns are forbidden in model inputs.
 
 ## Targets, grouping and alignment
 
@@ -55,14 +55,18 @@ No infinities were found. Nullable feature counts: train bearing_diff_deg 430, t
 
 ## Preprocessing
 
-`feature_scaler.joblib` is a fitted sklearn Pipeline: median SimpleImputer then StandardScaler, saved with sklearn 1.6.1. It has 15 inputs and no `feature_names_in_`. Its actual order is **bearing_diff_deg before bearing_valid**, unlike the Parquet order. All other columns retain the order above. Comparing all imputer medians and scaler means to usable labeled training rows in that order produces maximum absolute difference **0.0**, and scaler `n_samples_seen_` is 879,920, exactly five times 175,984. This strongly supports fitting only usable training rows; source provenance and cross-validation fold fitting cannot be proved without the generating script. Existing sklearn 1.7.2 warns about loading the 1.6.1 artifact.
+`feature_scaler.joblib` is a fitted sklearn Pipeline: median SimpleImputer then StandardScaler, saved with sklearn 1.6.1. It has 15 inputs and no `feature_names_in_`. Its actual order is **bearing_diff_deg before bearing_valid**, matching the notebook model order and differing from physical Parquet order. All other columns retain the order above. Comparing all imputer medians and scaler means to usable labeled training rows in that order produces maximum absolute difference **0.0**, and scaler `n_samples_seen_` is 879,920, exactly five times 175,984. This strongly supports fitting only usable training rows; source provenance and cross-validation fold fitting cannot be proved without the generating script. Existing sklearn 1.7.2 warns about loading the 1.6.1 artifact.
 
-LightGBM does not inherently require scaling. Prefer raw features with native missing-value handling if that is how the final model is trained. If training uses this preprocessing, the manifest must record its hash, explicit input order, training reference and compatible sklearn version. Adapter transforms in preprocessing order, then restores canonical model order. **Never fit/refit at inference.** Training must export model names in canonical order; arrays with unnamed `Column_0` features are rejected.
+LightGBM does not inherently require scaling. Prefer raw features with native missing-value handling if that is how the final model is trained. If training uses this preprocessing, the manifest must record its hash, explicit input order, training reference and compatible sklearn version. Adapter transforms in preprocessing order, then restores canonical notebook model order. **Never fit/refit at inference.** Training must export model names in canonical order; arrays with unnamed `Column_0` features are rejected.
 
-## Reproduction blocker and supported interface
+## Runtime interface and known reproduction limitation
 
-The historical `feature_engineering.py` produces 10 other features and 10–15 candidates, with a different label aligner. It cannot reproduce this Parquet. It is preserved and excluded from production imports. Only exact precomputed authoritative inference columns are currently supported. `FeatureService` projects metadata and allowlisted features without reading `label` or alignment diagnostics.
+The historical `feature_engineering.py` remains unchanged and excluded from production. The supplied notebook is preserved byte-identical under `notebooks/`; reviewed pure feature definitions are extracted into `backend/app/pipeline/notebook_features.py`. Its TripData type contains only trip_id, nodes, arcs and track, with no route field. The raw loader never reads protected reference data during inference.
 
-None of the ten reserved evaluator trips occurs in the supplied Parquet files. Raw train and student-test graphs are absent. To enable evaluator inference, supply the original generator, or exact evaluator `inference_features.parquet` produced by that generator and raw-file checksum bindings. Do not use `.route` during feature generation. Missing features produce `FEATURE_PIPELINE_UNAVAILABLE`; missing models produce `MODEL_NOT_READY` first.
+The full comparison against all 80 training and 10 student-test trips found candidate identity differences on 446,972 rows, including 94,722 observations with a different candidate set. Geometric distance columns match within the documented tolerance, but equal-distance arc choices/ranks and dependent features/labels can differ. Reference alignment also changes one selected position/arc. Cause is not established; numerical and tie handling differences are implicated. Do not call this exact parity.
+
+The user explicitly authorized proceeding for the demo despite this limitation. `PATHSNAP_NOTEBOOK_DEMO_MODE=1` (default) enables the unchanged notebook generator and adds a warning to generated-feature results. Set it to 0 for strict parity enforcement. Precomputed exact features remain supported with raw-file checksum bindings. Original artifacts are never regenerated or overwritten. The model/scaler feature order follows the notebook under version `notebook-features-v2`, runtime `authoritative-notebook-v2`; provisional v1 manifests are incompatible and rejected.
+
+Reference alignment is isolated in an evaluator-only module. Top1 accuracy and candidate miss metrics remain null until its parity/provenance is accepted for evaluation; unique-arc Jaccard remains aggregate-only after genuine inference. No model exists, so reconstruction still returns MODEL_NOT_READY.
 
 Geometry uses WGS84 GeoJSON `[longitude, latitude]`; every predicted arc is an individual directed LineString. Repeated predictions are preserved. No synthetic bridge is drawn across disconnected components. Road preview may truncate at 6,000 viewport arcs and reports this explicitly; full model inputs and decoder graph are never downsampled.

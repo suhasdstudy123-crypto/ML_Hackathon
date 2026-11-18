@@ -39,7 +39,7 @@ class SyntheticUnitTestProvider:
     def is_ready(self): return True
     def get_metadata(self):
         return {'name':'lightgbm','version':'SYNTHETIC_UNIT_TEST_ONLY','ready':True,'state':'READY','reason':None,
-                'feature_schema_version':'authoritative-parquet-v1','runtime_pipeline':'precomputed-authoritative-v1'}
+                'feature_schema_version':'notebook-features-v2','runtime_pipeline':'authoritative-notebook-v2'}
     def predict_candidate_scores(self,features):
         assert list(features)==FEATURES
         return np.array([.9,.1,.1,.1,.1, .1,.9,.1,.1,.1, .1,.1,.9,.1,.1])

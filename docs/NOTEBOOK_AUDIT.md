@@ -25,3 +25,7 @@ Source: `PathSnap_Dataset_Pipeline_Final_Pointwise.ipynb`, supplied by the user 
 3. Verify parity against supplied feature/alignment artifacts using corresponding raw files. Any mismatch is recorded explicitly; never replace the source datasets to obtain a passing result.
 4. Generate evaluator candidates only from raw track/nodes/arcs. No protected route in the inference input object. Model readiness remains false until a genuine trained artifact is supplied.
 5. If alignment parity passes, report accuracy as an **estimated aligned-label metric**, including denominators and uncertainty coverage. Never claim verified independent pointwise accuracy.
+
+## Subsequent user-directed demo exception
+
+After the failed full comparison, the user explicitly instructed proceeding for the demo despite lacking the original environment, then instructed no further testing and to push. The final implementation therefore permits unchanged notebook online generation under PATHSNAP_NOTEBOOK_DEMO_MODE=1 (default), with explicit parity warnings. Strict mode (0) retains the original gate. This is acceptance of a known runtime limitation, not a claim that the mismatch is fixed. See NOTEBOOK_INTEGRATION.md for final behavior and verification limits.

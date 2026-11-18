@@ -29,7 +29,7 @@ def synthetic_manifest(tmp_path,synthetic_features,monkeypatch):
     artifact=tmp_path/'synthetic.model';artifact.write_text('SYNTHETIC_UNIT_TEST_ONLY')
     m={'configured':True,'name':'lightgbm','version':'SYNTHETIC_UNIT_TEST_ONLY','artifact_format':'lightgbm_native',
        'artifact_path':artifact.name,'artifact_sha256':hashlib.sha256(artifact.read_bytes()).hexdigest(),
-       'feature_schema_version':'authoritative-parquet-v1','runtime_pipeline':'precomputed-authoritative-v1',
+       'feature_schema_version':'notebook-features-v2','runtime_pipeline':'authoritative-notebook-v2',
        'feature_names':FEATURES,'feature_dtypes':FEATURE_TYPES,'training_configuration_reference':'SYNTHETIC_UNIT_TEST_ONLY'}
     path=tmp_path/'manifest.json';path.write_text(json.dumps(m))
     monkeypatch.setitem(sys.modules,'lightgbm',SimpleNamespace(Booster=SyntheticTestBooster,LGBMClassifier=type('SyntheticTestClassifier',(),{})))

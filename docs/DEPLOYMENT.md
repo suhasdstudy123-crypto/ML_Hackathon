@@ -48,6 +48,8 @@ Paths default to repository-relative locations resolved from source, rather than
 
 | Variable | Default / meaning |
 |---|---|
+| PATHSNAP_NOTEBOOK_DEMO_MODE | 1: user-authorized unchanged notebook generation with parity warnings; 0: strict full-parity requirement |
+| PATHSNAP_PARITY_REPORT | `<repo>/docs/NOTEBOOK_PARITY.json` |
 | PATHSNAP_TRIP_DIR | `<repo>/evaluator_test/evaluator_test` |
 | PATHSNAP_FEATURE_DIR | `<repo>/data/authoritative` |
 | PATHSNAP_MODEL_MANIFEST | `<repo>/models/model_manifest.json` (absent by design) |
@@ -76,7 +78,7 @@ In-memory state disappears on process restart. Multiple Uvicorn workers would ha
 7. If internet access fails, Leaflet CDN/fonts/OSM background may be unavailable. No offline basemap is bundled. Tile failures show a message; if Leaflet itself fails to load, reload after restoring access. Vendor Leaflet locally for a truly offline demo.
 8. Visible OpenStreetMap attribution is retained; the app uses the standard HTTPS tile endpoint and no bulk prefetch. Respect the [OSM tile policy](https://operations.osmfoundation.org/policies/tiles/); for high volume/offline use, configure a suitable hosted/self-hosted OSM tile service in `map.js`.
 9. Reconnect through the connection button after changing URLs. Health is checked every 15 seconds when idle. Job polling retries transient GET failures and can resume a saved actual job ID. If the backend restarted or retention expired, JOB_NOT_FOUND explains that the previous job is gone.
-10. `MODEL_NOT_READY` is expected until model delivery. `FEATURE_PIPELINE_UNAVAILABLE` requires the original authoritative generator or exact feature export for the selected trip. Do not use historical HGB models/NPZ features as fallback.
+10. `MODEL_NOT_READY` is expected until model delivery. `FEATURE_PIPELINE_UNAVAILABLE` in strict mode requires a complete passing notebook parity report or exact precomputed feature export. Demo mode uses the supplied notebook despite documented candidate-tie drift. Do not use historical HGB models/NPZ features as fallback.
 
 Use `python -m uvicorn ... 2>&1 | tee pathsnap-backend.log` on a trusted operator terminal to retain JSON execution logs, then keep that log outside the public static directory. Logs contain request/job/trip IDs, stage changes, candidate counts, model version, duration, decode/evaluation completion and failures, without hidden labels. Retain according to the evaluator's needs; no public log endpoint exists.
 

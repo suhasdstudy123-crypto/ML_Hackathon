@@ -6,7 +6,14 @@ from backend.app.core.errors import AppError
 from backend.app.models.contract import FEATURES, METADATA, validate_features, validate_mapping
 
 class FeatureService:
-    def __init__(self, feature_dir): self.root = Path(feature_dir)
+    def __init__(self, feature_dir, parity_report=None, demo_mode=False):
+        from backend.app.config import ROOT
+        from backend.app.pipeline.compatibility import NotebookCompatibility
+        from .notebook_feature_service import NotebookFeatureService
+        self.root = Path(feature_dir)
+        self.compatibility = NotebookCompatibility(self.root, parity_report or ROOT/'docs/NOTEBOOK_PARITY.json')
+        self.demo_mode = demo_mode
+        self.notebook = NotebookFeatureService(self.compatibility, demo_mode)
 
     def _source(self, trip_id):
         for name in ['train_features.parquet', 'student_test_features.parquet', 'inference_features.parquet']:
@@ -21,7 +28,7 @@ class FeatureService:
 
     def availability(self, trip_id, fingerprints=None):
         if self._source(trip_id) is None:
-            return {'ready': False, 'reason': 'Exact authoritative candidate features unavailable for this trip; original generator required'}
+            return self.compatibility.availability(self.demo_mode)
         if not (self.root / 'trip_bindings.json').is_file():
             return {'ready': False, 'reason': 'Trip-to-feature raw-file checksum bindings required'}
         try:
@@ -33,9 +40,12 @@ class FeatureService:
             return {'ready': False, 'reason': 'Valid raw-file fingerprint bindings required for this trip'}
         return {'ready': True, 'reason': None}
 
-    def prepare(self, trip):
+    def prepare(self, trip, check_deadline=lambda: None, on_generation=lambda: None):
         p = self._source(trip.trip_id)
-        if p is None: raise AppError('FEATURE_PIPELINE_UNAVAILABLE', 'Exact authoritative features unavailable; supply the original generator or precomputed trip features', 503)
+        if p is None:
+            self.compatibility.require_generation_ready(self.demo_mode)
+            on_generation()
+            return self._validate(self.notebook.generate(trip, check_deadline), trip)
         try:
             bindings = json.loads((self.root / 'trip_bindings.json').read_text())
             if bindings.get(trip.trip_id) != trip.fingerprints: raise ValueError('Mismatch')
@@ -46,6 +56,12 @@ class FeatureService:
             data = pd.read_parquet(p, columns=METADATA + FEATURES, filters=[('trip_id', '==', trip.trip_id)])
         except Exception as exc:
             raise AppError('INVALID_FEATURE_SCHEMA', 'Required inference columns unavailable') from exc
+        check_deadline()
+        return self._validate(data, trip)
+
+    def _validate(self, data, trip):
+        if not data.trip_id.eq(trip.trip_id).all():
+            raise AppError('INVALID_CANDIDATE_MAPPING', 'Feature rows must belong to the selected trip')
         features = data[FEATURES].reset_index(drop=True)
         mapping = data[['point_idx', 'candidate_edge_id']].reset_index(drop=True)
         validate_features(features, allow_missing=True)
@@ -58,4 +74,5 @@ class FeatureService:
         expected_time = trip.track.time.to_numpy()[mapping.point_idx.to_numpy()]
         if not np.allclose(data.timestamp, expected_time, rtol=0, atol=1e-8):
             raise AppError('FEATURE_BINDING_MISMATCH', 'Feature timestamps do not match raw observation order')
+        features.attrs['pipeline_warnings'] = data.attrs.get('pipeline_warnings', [])
         return features, mapping

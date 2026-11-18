@@ -21,8 +21,8 @@ class Manifest(BaseModel):
     artifact_format: Literal['lightgbm_native', 'joblib_lightgbm']
     artifact_path: str
     artifact_sha256: str = Field(pattern=r'^[a-f0-9]{64}$')
-    feature_schema_version: Literal['authoritative-parquet-v1']
-    runtime_pipeline: Literal['precomputed-authoritative-v1']
+    feature_schema_version: Literal['notebook-features-v2']
+    runtime_pipeline: Literal['authoritative-notebook-v2']
     feature_names: list[str]
     feature_dtypes: dict[str, str]
     preprocessing_path: str | None = None

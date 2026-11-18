@@ -3,11 +3,11 @@ import numpy as np
 import pandas as pd
 from backend.app.core.errors import AppError
 
-SCHEMA_VERSION = 'authoritative-parquet-v1'
-PIPELINE_VERSION = 'precomputed-authoritative-v1'
+SCHEMA_VERSION = 'notebook-features-v2'
+PIPELINE_VERSION = 'authoritative-notebook-v2'
 FEATURE_TYPES = {
     'dist_to_edge_m': 'float64', 'dist_to_u_node_m': 'float64', 'dist_to_v_node_m': 'float64',
-    'bearing_valid': 'int64', 'bearing_diff_deg': 'float64', 'time_gap_prev_s': 'float64',
+    'bearing_diff_deg': 'float64', 'bearing_valid': 'int64', 'time_gap_prev_s': 'float64',
     'speed_implied_mps': 'float64', 'irregular_gap_flag': 'float64', 'candidate_rank': 'int64',
     'dist_minus_best_at_point_m': 'float64', 'num_candidates_at_point': 'int64',
     'edge_length_m': 'float64', 'u_node_degree': 'int64', 'v_node_degree': 'int64',
@@ -17,7 +17,10 @@ FEATURES = list(FEATURE_TYPES)
 METADATA = ['trip_id', 'point_idx', 'candidate_edge_id', 'timestamp']
 NULLABLE = {'bearing_diff_deg', 'time_gap_prev_s', 'speed_implied_mps', 'irregular_gap_flag'}
 SCALER_ORDER = FEATURES.copy()
-SCALER_ORDER[3:5] = ['bearing_diff_deg', 'bearing_valid']
+# The notebook's explicit FEATURE_COLUMNS is authoritative for models/scaler.
+# Parquet physical storage order is intentionally separate.
+PARQUET_FEATURES = FEATURES.copy()
+PARQUET_FEATURES[3:5] = ['bearing_valid', 'bearing_diff_deg']
 
 def validate_features(frame, allow_missing=False):
     if not isinstance(frame, pd.DataFrame) or list(frame.columns) != FEATURES:

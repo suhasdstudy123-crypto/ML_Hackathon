@@ -6,7 +6,7 @@ No LightGBM model exists here. Runtime code supports loading only a **supplied t
 
 Use `models/model_manifest.example.json` as the strict template. Place an edited copy at `models/model_manifest.json` or set `PATHSNAP_MODEL_MANIFEST` to an absolute path. Relative artifact/preprocessing paths resolve relative to the manifest directory. Both local model and manifest are ignored by Git.
 
-Required fields: configured=true, name=lightgbm, version, artifact_format (`lightgbm_native` or `joblib_lightgbm`), artifact_path, SHA-256, feature_schema_version=authoritative-parquet-v1, runtime_pipeline=precomputed-authoritative-v1, exact ordered feature_names, exact feature_dtypes, training_configuration_reference, output_type=binary_probability, positive_class=1, missing_value_policy. Creation metadata should include training/export versions and date. Calibration metadata records method and permitted development validation; no calibration is assumed.
+Required fields: configured=true, name=lightgbm, version, artifact_format (`lightgbm_native` or `joblib_lightgbm`), artifact_path, SHA-256, feature_schema_version=notebook-features-v2, runtime_pipeline=authoritative-notebook-v2, exact ordered feature_names, exact feature_dtypes, training_configuration_reference, output_type=binary_probability, positive_class=1, missing_value_policy. Creation metadata should include training/export versions and date. Calibration metadata records method and permitted development validation; no calibration is assumed.
 
 Use the 15-feature allowlist/order in `backend/app/models/contract.py` and `DATA_CONTRACT.md`. Construct training DataFrames with those names; a model exported from an unnamed array with `Column_0` feature names is incompatible. `label`, identifiers, timestamp, alignment diagnostics and correctness indicators must not enter the predictive matrix.
 
@@ -28,25 +28,23 @@ num_candidates_at_point, edge_length_m, u_node_degree, v_node_degree,
 reverse_edge_exists
 ```
 
-The adapter transforms in that preprocessing order, names its output accordingly and restores canonical model order (bearing_valid before bearing_diff_deg). Training must have used the same transformation and final model order. If your training code uses another final order, fix the export contract before loading; do not hide the mismatch. The supplied medians/means match all usable training rows exactly, but CV fold fitting provenance is not supplied. Fit fold preprocessing on each fold's training partition during development, separately from final export.
+The adapter transforms in that preprocessing order, names its output accordingly and restores canonical model order (bearing_diff_deg before bearing_valid). Training must have used the same transformation and final model order. If your training code uses another final order, fix the export contract before loading; do not hide the mismatch. The supplied medians/means match all usable training rows exactly, but CV fold fitting provenance is not supplied. Fit fold preprocessing on each fold's training partition during development, separately from final export.
 
-## Exact evaluator features — additional blocker
+## Evaluator features and demo policy
 
-The authoritative generator source is absent and the historical raw extractor is incompatible. Do not implement an approximation or use hidden route membership. Obtain exact features for each evaluator trip from the original generator, preserving all observations and five candidates each. Supported precomputed sources are `train_features.parquet`, `student_test_features.parquet`, or `inference_features.parquet` under `PATHSNAP_FEATURE_DIR`. The inference loader reads only identifiers, timestamps and the 15 features. It never reads labels or diagnostics. A future online generator must implement this same FeatureService boundary and pass exact parity tests against supplied Parquet before being enabled.
+The supplied `PathSnap_Dataset_Pipeline_Final_Pointwise.ipynb` now provides the original generator source. Reviewed definitions are extracted unchanged into `backend/app/pipeline/notebook_features.py`; bootstrap, extraction, fitting and dataset write cells are never executed by the backend. Generated candidates use only raw track/nodes/arcs and flow through the same strict schema/group/mapping validation as precomputed rows.
 
-Bind precomputed rows to the original raw inputs using `trip_bindings.json`:
+Full saved-dataset parity does not pass in this Mac runtime: geometric distance values agree within tolerance, but candidates at equal-distance cutoffs can differ. The user authorized demo use despite that limitation. `PATHSNAP_NOTEBOOK_DEMO_MODE=1` is the default, with explicit warnings in health/configuration/result surfaces. Set it to 0 to require a complete passing runtime-bound parity report before generation. Do not claim that demo mode fixes the mismatch, or that a trained model’s quality has been verified with these runtime candidate choices.
+
+Precomputed train/student_test/inference Parquet sources remain supported. Each selected trip must have raw track/nodes/arcs SHA-256 bindings in `trip_bindings.json`. The inference projection reads only metadata and allowlisted features, never labels/diagnostics. Example:
 
 ```json
-{
-  "00000023": {
-    "track": "SHA256_OF_EXACT_TRACK_BYTES",
-    "nodes": "SHA256_OF_EXACT_NODES_BYTES",
-    "arcs": "SHA256_OF_EXACT_ARCS_BYTES"
-  }
-}
+{"00000023":{"track":"SHA256_TRACK","nodes":"SHA256_NODES","arcs":"SHA256_ARCS"}}
 ```
 
-Produce these hashes at feature export time. Arc IDs must be exact `.arcs` row indices, and timestamps must match `.track` row order. API metadata reports basic source/binding availability; full row, rank, shape and graph validation runs in the job. An invalid binding or mismatch fails explicitly. The API does not claim a trained model alone makes every trip reconstructable.
+The model order is now the notebook's explicit FEATURE_COLUMNS, including bearing_diff_deg before bearing_valid. The provisional v1 contract used physical Parquet order; v1 manifests must be updated and any actual model must have stored names matching v2. No real trained artifact existed during that change.
+
+See [NOTEBOOK_INTEGRATION.md](NOTEBOOK_INTEGRATION.md) for the evidence, limitations and source mapping.
 
 ## Scoring and decoding
 
@@ -64,4 +62,4 @@ python -m pytest -q
 # Restart single-worker API, then check /api/v1/health/ready and trip metadata.
 ```
 
-The loader probes outputs on five **actual** rows projected from the supplied student-test/train data; it does not invent production probe features. The CLI exits nonzero until model readiness is true. Full trip validation also checks checksum bindings and candidate grouping. After delivery, run an actual reconstruction and inspect backend stage logs, actual arc sequences, directed breaks, latency and aggregate evaluation. Compare classifier-only versus HMM on permitted development trips before making quality claims. The authoritative reference aligner is also missing: top1_accuracy and candidate_miss_rate currently remain null. Set Jaccard against the protected reference arc sequence is available after genuine inference; it is not sequence edit accuracy.
+The loader probes outputs on five **actual** rows projected from the supplied student-test/train data; it does not invent production probe features. The CLI exits nonzero until model readiness is true. Full trip validation also checks checksum bindings and candidate grouping. After delivery, run an actual reconstruction and inspect backend stage logs, actual arc sequences, directed breaks, latency and aggregate evaluation. Compare classifier-only versus HMM on permitted development trips before making quality claims. The supplied reference aligner has a remaining parity difference: top1_accuracy and candidate_miss_rate currently remain null. Set Jaccard against the protected reference arc sequence is available after genuine inference; it is not sequence edit accuracy.

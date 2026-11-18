@@ -39,7 +39,7 @@ class TripService:
         for ext, names in [('track', ['lon', 'lat', 'time']), ('nodes', ['lon', 'lat']), ('arcs', ['u', 'v'])]:
             p = self.path(trip_id, ext)
             try:
-                values = pd.read_csv(p, sep=r'\s+', header=None)
+                values = pd.read_csv(p, sep=r'\s+', header=None, float_precision='round_trip')
                 if values.shape[1] != len(names) or values.empty: raise ValueError('Invalid shape')
                 values.columns = names
                 if not np.isfinite(values.to_numpy(dtype=float)).all(): raise ValueError('Nonfinite data')

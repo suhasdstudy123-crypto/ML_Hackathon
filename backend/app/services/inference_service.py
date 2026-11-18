@@ -15,7 +15,7 @@ class InferenceService:
         stage('PREPARING_DATA')
         trip = self.trips.load(trip_id); check_deadline()
         stage('PREPARING_FEATURES')
-        X, mapping = self.features.prepare(trip); check_deadline()
+        X, mapping = self.features.prepare(trip, check_deadline, lambda: stage('GENERATING_CANDIDATES')); check_deadline()
         stage('SCORING_CANDIDATES')
         scores = self.provider.predict_candidate_scores(X); check_deadline()
         groups = group_scores(X, mapping, scores, len(trip.track), len(trip.arcs))
@@ -40,4 +40,5 @@ class InferenceService:
                   'metrics': {'top1_accuracy': None, 'route_continuity': decoded['diagnostics']['route_continuity'], 'sequence_jaccard': None,
                               'candidate_miss_rate': None, 'inference_time_ms': (time.perf_counter()-start)*1000},
                   'warnings': ['Directed run breaks are reported explicitly; geometry contains individual predicted arcs without invented connecting roads'] if decoded['diagnostics']['transition_breaks'] else []}
+        result['warnings'].extend(X.attrs.get('pipeline_warnings', []))
         return trip, seq, mapping, result
