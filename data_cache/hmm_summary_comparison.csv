@@ -1,0 +1,3 @@
+Method,Mean Top-1 Accuracy,Mean Route Continuity,Mean Sequence Jaccard
+Classifier-Only Predictions,81.63%,88.82%,68.73%
+Classifier + HMM/Viterbi Decoding,85.45%,98.50%,79.61%

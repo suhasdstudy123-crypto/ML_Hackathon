@@ -1,0 +1,10 @@
+dist_to_segment
+log_dist
+heading_diff
+cos_heading_diff
+proj_ratio_t
+segment_length
+gps_speed
+time_gap
+dist_rank
+is_closest

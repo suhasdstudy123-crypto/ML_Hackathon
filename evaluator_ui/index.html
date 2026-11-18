@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PathSnap Evaluator Dashboard</title>
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --success: #16a34a;
+      --warning: #d97706;
+      --danger: #dc2626;
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --text: #1e293b;
+      --border: #e2e8f0;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { background-color: var(--bg); color: var(--text); padding: 1.5rem; }
+    header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; padding-bottom: 1rem; border-bottom: 1px solid var(--border); }
+    h1 { font-size: 1.6rem; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 0.5rem; }
+    .badge { font-size: 0.8rem; background: #e0e7ff; color: #4338ca; padding: 0.25rem 0.6rem; border-radius: 9999px; font-weight: 600; }
+    .status-pill { display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; font-weight: 600; }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; background-color: #22c55e; }
+    
+    .layout { display: grid; grid-template-columns: 320px 1fr; gap: 1.5rem; }
+    .sidebar { display: flex; flex-direction: column; gap: 1rem; }
+    .card { background: var(--card-bg); border-radius: 0.75rem; border: 1px solid var(--border); padding: 1.25rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+    .card-title { font-size: 0.95rem; font-weight: 700; color: #334155; margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    
+    label { font-size: 0.85rem; font-weight: 600; color: #475569; margin-bottom: 0.25rem; display: block; }
+    input[type="text"], select { width: 100%; padding: 0.5rem 0.75rem; border-radius: 0.5rem; border: 1px solid var(--border); margin-bottom: 0.75rem; font-size: 0.9rem; }
+    .btn { width: 100%; background: var(--primary); color: white; border: none; padding: 0.65rem 1rem; border-radius: 0.5rem; font-weight: 600; font-size: 0.95rem; cursor: pointer; transition: background 0.2s; display: flex; justify-content: center; align-items: center; gap: 0.5rem; }
+    .btn:hover { background: var(--primary-hover); }
+    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+    
+    .metrics-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem; margin-top: 0.5rem; }
+    .metric-card { background: #f1f5f9; padding: 0.75rem; border-radius: 0.5rem; text-align: center; }
+    .metric-val { font-size: 1.4rem; font-weight: 800; color: #0f172a; }
+    .metric-label { font-size: 0.75rem; color: #64748b; font-weight: 600; margin-top: 0.2rem; }
+    
+    #map-container { height: calc(100vh - 140px); min-height: 550px; border-radius: 0.75rem; border: 1px solid var(--border); overflow: hidden; position: relative; }
+    #map { width: 100%; height: 100%; }
+    
+    .legend { position: absolute; bottom: 20px; right: 20px; z-index: 1000; background: rgba(255,255,255,0.92); padding: 0.75rem 1rem; border-radius: 0.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.15); font-size: 0.82rem; }
+    .legend-item { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem; font-weight: 500; }
+    .legend-color { width: 18px; height: 4px; border-radius: 2px; }
+    .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+    
+    .loading-overlay { display: none; position: absolute; inset: 0; background: rgba(255,255,255,0.7); z-index: 2000; justify-content: center; align-items: center; font-weight: 600; color: var(--primary); }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div>
+      <h1>PathSnap <span class="badge">PES Hackathon Evaluator Interface</span></h1>
+      <p style="font-size: 0.85rem; color: #64748b; margin-top: 0.2rem;">Distributed Map-Matching & Sequential Route Reconstruction</p>
+    </div>
+    <div class="status-pill">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="status-text">Connecting to API...</span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <!-- Sidebar -->
+    <div class="sidebar">
+      <div class="card">
+        <div class="card-title">API Connection</div>
+        <label for="api-url">API Endpoint URL (Laptop 1)</label>
+        <input type="text" id="api-url" value="http://localhost:8000" placeholder="http://192.168.x.x:8000" />
+        <button class="btn" onclick="checkApiConnection()" style="background:#475569; margin-bottom: 0.5rem; font-size: 0.85rem; padding: 0.4rem;">Test Connection</button>
+      </div>
+
+      <div class="card">
+        <div class="card-title">Evaluation Trip Selection</div>
+        <label for="trip-select">Select Evaluation Trip (10 Reserved Trips)</label>
+        <select id="trip-select">
+          <option value="">Loading trips...</option>
+        </select>
+
+        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+          <input type="checkbox" id="use-hmm" checked />
+          <label for="use-hmm" style="margin: 0; cursor: pointer;">Enable HMM & Viterbi Decoding</label>
+        </div>
+
+        <button class="btn" id="run-btn" onclick="runInference()">
+          <span>Run Evaluation</span>
+        </button>
+      </div>
+
+      <div class="card" id="results-card">
+        <div class="card-title">Evaluation Metrics</div>
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <div class="metric-val" id="metric-acc" style="color: #16a34a;">--%</div>
+            <div class="metric-label">Top-1 Accuracy</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-val" id="metric-cont" style="color: #2563eb;">--%</div>
+            <div class="metric-label">Route Continuity</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-val" id="metric-jacc" style="color: #7c3aed;">--%</div>
+            <div class="metric-label">Sequence Jaccard</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-val" id="metric-lat" style="color: #d97706;">--ms</div>
+            <div class="metric-label">Inference Time</div>
+          </div>
+        </div>
+        <div style="font-size: 0.8rem; color: #64748b; margin-top: 0.75rem; text-align: center;">
+          GPS Observations: <strong id="metric-pts">0</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main Map View -->
+    <div id="map-container">
+      <div id="map"></div>
+      <div class="loading-overlay" id="loading-overlay">
+        <span>Processing Trip through ML Pipeline & Viterbi Decoder...</span>
+      </div>
+      <div class="legend">
+        <div class="legend-item">
+          <div class="legend-color" style="background: #16a34a; height: 5px;"></div>
+          <span>Ground Truth Route</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-color" style="background: #ea580c; border: 1px dashed #c2410c;"></div>
+          <span>Predicted Route (HMM)</span>
+        </div>
+        <div class="legend-item">
+          <div class="legend-dot" style="background: #3b82f6;"></div>
+          <span>Raw GPS Observations</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let map = L.map('map').setView([50.0, 8.6], 13);
+    // Esri World Street Map: 100% free, no API key required, beautiful detailed street map
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+      maxZoom: 19,
+      attribution: 'Tiles &copy; Esri &mdash; Source: Esri, DeLorme, NAVTEQ, USGS, Intermap, iPC, NRCAN, Esri Japan, METI, Esri China (Hong Kong), Esri (Thailand), TomTom, 2012'
+    }).addTo(map);
+
+    let layerGPS = L.layerGroup().addTo(map);
+    let layerGT = L.layerGroup().addTo(map);
+    let layerPred = L.layerGroup().addTo(map);
+
+    async function checkApiConnection() {
+      const apiUrl = document.getElementById('api-url').value.trim();
+      const dot = document.getElementById('status-dot');
+      const text = document.getElementById('status-text');
+      try {
+        const res = await fetch(`${apiUrl}/trips`);
+        if (res.ok) {
+          const data = await res.json();
+          dot.style.backgroundColor = '#22c55e';
+          text.textContent = 'API Connected (Laptop 1)';
+          const select = document.getElementById('trip-select');
+          select.innerHTML = '';
+          data.trips.forEach(tid => {
+            const opt = document.createElement('option');
+            opt.value = tid;
+            opt.textContent = `Trip ${tid}`;
+            select.appendChild(opt);
+          });
+        } else {
+          throw new Error();
+        }
+      } catch (err) {
+        dot.style.backgroundColor = '#ef4444';
+        text.textContent = 'API Disconnected';
+      }
+    }
+
+    async function runInference() {
+      const apiUrl = document.getElementById('api-url').value.trim();
+      const tripId = document.getElementById('trip-select').value;
+      const useHmm = document.getElementById('use-hmm').checked;
+      if (!tripId) return;
+
+      const loader = document.getElementById('loading-overlay');
+      const btn = document.getElementById('run-btn');
+      loader.style.display = 'flex';
+      btn.disabled = true;
+
+      try {
+        const res = await fetch(`${apiUrl}/predict_and_evaluate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ trip_id: tripId, use_hmm: useHmm })
+        });
+
+        if (!res.ok) throw new Error("API call failed");
+        const data = await res.json();
+
+        // Update metrics
+        document.getElementById('metric-acc').textContent = `${data.top1_accuracy}%`;
+        document.getElementById('metric-cont').textContent = `${data.route_continuity}%`;
+        document.getElementById('metric-jacc').textContent = `${data.sequence_jaccard}%`;
+        document.getElementById('metric-lat').textContent = `${data.inference_time_ms}ms`;
+        document.getElementById('metric-pts').textContent = data.n_observations;
+
+        // Clear previous map layers
+        layerGPS.clearLayers();
+        layerGT.clearLayers();
+        layerPred.clearLayers();
+
+        // Plot Ground Truth segments (Green)
+        data.ground_truth_segments.forEach(seg => {
+          L.polyline([[seg.u_lat, seg.u_lon], [seg.v_lat, seg.v_lon]], {
+            color: '#16a34a',
+            weight: 5,
+            opacity: 0.8
+          }).addTo(layerGT);
+        });
+
+        // Plot Predicted segments (Orange)
+        data.predicted_segments.forEach(seg => {
+          L.polyline([[seg.u_lat, seg.u_lon], [seg.v_lat, seg.v_lon]], {
+            color: '#ea580c',
+            weight: 3.5,
+            dashArray: '6, 6',
+            opacity: 0.95
+          }).addTo(layerPred);
+        });
+
+        // Plot GPS Observations (Blue Dots)
+        const allBounds = [];
+        data.gps_points_sample.forEach(pt => {
+          allBounds.push(pt);
+          L.circleMarker(pt, {
+            radius: 3,
+            color: '#1d4ed8',
+            fillColor: '#3b82f6',
+            fillOpacity: 0.7,
+            weight: 1
+          }).addTo(layerGPS);
+        });
+
+        if (allBounds.length > 0) {
+          map.fitBounds(allBounds, { padding: [30, 30] });
+        }
+
+      } catch (err) {
+        alert("Inference request failed: " + err.message);
+      } finally {
+        loader.style.display = 'none';
+        btn.disabled = false;
+      }
+    }
+
+    // Initialize connection on page load
+    window.onload = checkApiConnection;
+  </script>
+</body>
+</html>

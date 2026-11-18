@@ -1,0 +1,5 @@
+,trip_id,n_points,n_points,n_points,n_points,n_nodes,n_nodes,n_nodes,n_arcs,n_arcs,n_arcs,n_route,n_route,n_route,exact_1s_pct,max_gap_s
+,count,sum,mean,min,max,mean,min,max,mean,min,max,mean,min,max,mean,max
+split,,,,,,,,,,,,,,,,
+student_test,10,19160,1916.0,262,3958,9068.9,1770,26635,18504.1,3577,56027,347.7,95,1323,98.19896936551982,210.0
+train,80,208417,2605.2125,361,19313,24168.5625,299,155003,48461.3,649,307392,391.7,59,2266,93.82961036581523,153064.0

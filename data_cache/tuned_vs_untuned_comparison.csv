@@ -1,0 +1,3 @@
+Configuration,CV Macro F1-score,Student-Test Top-1 Accuracy,Student-Test Macro F1-score,Log Loss,Inference Time
+Untuned Baseline (Default),0.8231,79.42%,0.8755,0.0925,0.359s
+Bayesian Tuned (TPE),0.9078,79.69%,0.8774,0.091,0.646s
