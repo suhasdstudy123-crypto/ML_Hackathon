@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="styles.css">
   <script defer src="vendor/leaflet/leaflet.js"></script>
+  <script src="runtime-config.js"></script>
   <script type="module" src="js/app.js"></script>
 </head>
 <body>
@@ -26,7 +27,7 @@
     <header class="topbar"><span>Workspace <span class="slash">/</span> <strong id="breadcrumb">Fleet Overview</strong></span><span class="environment"><i></i> LAN workspace</span></header>
     <div class="content">
       <section class="page-heading"><div><div class="eyebrow">GPS → ROAD NETWORK → ROUTE</div><h1 id="page-title">Every trip, in context.</h1><p id="page-description">Explore the road beneath your GPS observations.</p></div><span class="model-chip" id="model-chip">○ Model pending</span></section>
-      <section class="connection-bar" aria-label="Backend connection"><div><strong>Backend connection</strong><small>Connect to Laptop 1 on your local network</small></div><label class="sr-only" for="api-url">Backend API URL</label><input id="api-url" type="url" placeholder="http://192.168.1.20:8000" spellcheck="false"><button id="connect-btn" class="button secondary">Connect backend <span>↗</span></button></section>
+      <section class="connection-bar" aria-label="Backend connection"><div><strong>Backend connection</strong><small>Hosted together, or connect to your backend</small></div><label class="sr-only" for="api-url">Backend API URL</label><input id="api-url" type="url" placeholder="http://192.168.1.20:8000" spellcheck="false"><button id="connect-btn" class="button secondary">Connect backend <span>↗</span></button></section>
       <div id="error" class="error-banner" role="alert" hidden><span id="error-message"></span><button id="retry-btn" class="text-button">Retry connection</button></div>
       <section class="stats" id="overview-stats" aria-label="Workspace summary"><article><span>Available trips</span><strong id="trip-count">—</strong><small>Loaded from your backend</small></article><article><span>Selected observations</span><strong id="observation-count">—</strong><small>Original GPS samples</small></article><article><span>Road network arcs</span><strong id="arc-count">—</strong><small>Trip-specific directed graph</small></article><article><span>Completed reconstructions</span><strong id="completed-count">—</strong><small>Current backend session</small></article></section>
       <div class="workspace-grid">

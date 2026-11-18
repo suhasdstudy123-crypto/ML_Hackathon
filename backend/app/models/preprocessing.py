@@ -24,7 +24,7 @@ class JsonStandardizer:
         n = self.n_features_in_
         if not (self.medians.shape == self.means.shape == self.scales.shape == (n,)):
             raise ValueError('Preprocessing parameter length does not match feature count')
-        if not (np.isfinite(self.medians).all() and np.isfinite(self.means).all() and (self.scales > 0).all()):
+        if not (np.isfinite(self.medians).all() and np.isfinite(self.means).all() and np.isfinite(self.scales).all() and (self.scales > 0).all()):
             raise ValueError('Preprocessing parameters must be finite with positive scales')
 
     @classmethod

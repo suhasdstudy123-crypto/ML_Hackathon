@@ -5,9 +5,10 @@ from uuid import uuid4
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 from starlette.exceptions import HTTPException
-from backend.app.config import Settings
+from fastapi.staticfiles import StaticFiles
+from backend.app.config import Settings, ROOT
 from backend.app.core.errors import AppError
 from backend.app.core.jobs import JobManager
 from backend.app.core.logging import configure_logging
@@ -79,7 +80,12 @@ def create_app(settings=None, provider=None):
         return {'schema_version':'1.0','status':status,'model_ready':provider.is_ready(),'model':provider.get_metadata(),
                 'trip_count':len(ids),'feature_pipeline':'authoritative-notebook-v2; demo mode with known parity differences' if settings.notebook_demo_mode else 'authoritative-notebook-v2; strict parity required'}
 
-    @app.get('/',response_model=Health)
+    @app.get('/', include_in_schema=False)
+    def root(request: Request):
+        if 'text/html' in request.headers.get('accept', ''):
+            return RedirectResponse('/ui/', status_code=307)
+        return health('alive')
+
     @app.get('/api/v1/health/live',response_model=Health)
     def live(): return health('alive')
 
@@ -122,6 +128,17 @@ def create_app(settings=None, provider=None):
     def status(job_id:str): return app.state.jobs.get(job_id)
     @app.get('/api/v1/reconstructions/{job_id}/result',response_model=ReconstructionResult)
     def result(job_id:str): return app.state.jobs.result(job_id)
+
+    @app.get('/ui/runtime-config.js', include_in_schema=False)
+    def ui_runtime_config():
+        # Browser uses the same HTTPS host as the dashboard; never its own localhost.
+        return Response("document.documentElement.dataset.apiMode = 'same-origin';\n",
+                        media_type='application/javascript', headers={'Cache-Control':'no-store'})
+
+    ui_dir = ROOT / 'evaluator_ui' / 'dist'
+    if ui_dir.is_dir():
+        app.mount('/ui', StaticFiles(directory=str(ui_dir), html=True), name='ui')
+
     return app
 
 app=create_app()

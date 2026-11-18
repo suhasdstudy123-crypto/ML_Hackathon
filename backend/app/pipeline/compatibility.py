@@ -18,8 +18,8 @@ ROOT = Path(__file__).resolve().parents[3]
 PIPELINE_FILES = ('notebook_features.py', 'reference_alignment.py')
 EXTRACTED_FEATURE_HASH = '970ad1803a1d3f25eefa608ba738ff364e5dac1e6e02e0cb95b6f59c8482d330'
 DEMO_WARNING = ('Notebook demo mode: candidates are generated online with the unchanged notebook code. '
-                'On the 10 student-test trips they match the training export on 99.8% of points '
-                '(rare equal-distance ties can differ), so exact dataset parity is not guaranteed.')
+                'Equal-distance ties and numerical behavior can change candidate identities across runtimes; '
+                'the original training export is unchanged, and exact online dataset parity is not guaranteed.')
 
 
 def source_sha256(path):

@@ -105,7 +105,7 @@ async function renderResult(result) {
   const m = result.metrics, usedHmm = result.predictions.hmm_arc_sequence.length > 0;
   // Headline numbers are for the route shown (HMM when enabled); sub-lines give the comparison.
   el('metric-acc').textContent = formatFraction(m.top1_accuracy);
-  el('metric-acc-sub').textContent = m.top1_accuracy == null ? '' : `${usedHmm ? 'HMM' : 'Classifier'} · classifier only ${formatFraction(m.classifier_top1_accuracy)} · ${m.evaluated_points?.toLocaleString() ?? '—'} points`;
+  el('metric-acc-sub').textContent = m.top1_accuracy == null ? '' : `${usedHmm ? 'HMM' : 'Classifier'} · estimated alignment · classifier only ${formatFraction(m.classifier_top1_accuracy)} · ${m.evaluated_points?.toLocaleString() ?? '—'} points`;
   el('metric-cont').textContent = formatFraction(m.route_continuity);
   el('metric-cont-sub').textContent = `${result.diagnostics.transition_breaks.length} run breaks`;
   el('metric-recall').textContent = formatFraction(m.route_arc_recall);
@@ -141,7 +141,7 @@ async function initialize() {
   try {routeMap = new RouteMap('map', properties => {el('inspector').textContent = `Observation #${properties.observation_index} · timestamp ${properties.timestamp} s`;});
     routeMap.onTileError = () => {el('warnings').textContent = 'Background tiles unavailable. GPS and road geometry remain available; check internet access.';};
   } catch (error) {mapError = error; showError(error);}
-  el('api-url').value = new URLSearchParams(location.search).get('api') || stored('pathsnap-api') || '';
+  el('api-url').value = new URLSearchParams(location.search).get('api') || (document.documentElement.dataset.apiMode === 'same-origin' ? location.origin : stored('pathsnap-api')) || '';
   el('connect-btn').addEventListener('click', connect); el('retry-btn').addEventListener('click', connect);
   el('api-url').addEventListener('keydown', event => {if (event.key === 'Enter') connect();});
   el('trip-select').addEventListener('change', event => selectTrip(event.target.value));

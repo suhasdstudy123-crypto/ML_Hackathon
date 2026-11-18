@@ -36,11 +36,11 @@ class EvaluationService:
         metrics = {'sequence_jaccard': len(pred & reference) / len(pred | reference),
                    'route_arc_precision': len(pred & reference) / len(pred) if pred else None,
                    'route_arc_recall': len(pred & reference) / len(reference)}
-        warnings = []
+        warnings = ['Top-1 accuracy and candidate miss rate use accepted estimated notebook alignments, not independently verified per-observation ground truth.']
         try:
             # Same notebook alignment that produced the training labels: each GPS point gets the
-            # reference arc it most likely lies on. Verified to reproduce the saved student-test
-            # alignments exactly (19,160 / 19,160 points).
+            # reference arc it most likely lies on. Alignment is an estimated label;
+            # parity and candidate tie behavior can vary across runtime environments.
             aligned = align_gps_to_route(ReferenceTrip(trip.trip_id, trip.nodes[['lon', 'lat']].to_numpy(),
                                                        trip.arcs[['u', 'v']].to_numpy(), trip.track[['lon', 'lat', 'time']].to_numpy(), route))
             aligned = aligned.sort_values('point_idx')

@@ -2,14 +2,14 @@
 
 Explore real trip GPS observations and their directed road networks in a Leaflet/OpenStreetMap dashboard. FastAPI runs on Laptop 1; Laptop 2 runs the static dashboard and connects over a configurable LAN URL.
 
-**Current state:** the trained LightGBM model (`lightgbm/`) is connected and all ten reserved evaluator trips reconstruct end to end: online notebook features → LightGBM candidate scores → directed HMM/Viterbi → server-side evaluation (Top-1 accuracy, classifier-only Top-1, route continuity, route-arc precision/recall, candidate miss rate). The backend reproduces the notebook's saved student-test probabilities exactly (max difference 1e-16; Top-1 0.7719). Online candidates match the training export on 99.8% of student-test points; rare equal-distance ties can differ (demo mode, documented).
+**Current state:** the trained LightGBM model (`lightgbm/`) is connected and all ten reserved evaluator trips reconstruct end to end: online notebook features → LightGBM candidate scores → directed HMM/Viterbi → server-side evaluation (Top-1 accuracy, classifier-only Top-1, route continuity, route-arc precision/recall, candidate miss rate). The backend reproduces the notebook's saved student-test probabilities exactly (max difference 1e-16; Top-1 0.7719). Online candidate ties can differ across runtime environments (demo mode, documented). Top-1 and candidate-miss metrics are measured against accepted estimated notebook alignments.
 
 ## Windows quick start (demo)
 
 ```powershell
 python -m pip install -r requirements-dev.txt -r requirements-model.txt
 python scripts\import_dataset.py "<folder or zip with the seven artifacts>"   # once, on Laptop 1
-python scriptsalidate_model.py                                             # model load + exact parity check
+python scripts/validate_model.py                                             # model load + exact parity check
 .\start_api.ps1 -UiOrigin http://<Laptop2-IP>:5173                           # Laptop 1 (add -Port 8011 if 8000 is busy)
 .\start_ui.ps1 -ApiUrl http://<Laptop1-IP>:8000                              # Laptop 2
 ```
@@ -111,3 +111,16 @@ Tests use explicitly named synthetic fixtures only under test directories; produ
 The original training, EDA, inspection and HGB/HMM experiment scripts, model weights, NPZ caches, figures and HTML maps remain intact and are not imported or served by the production app. The original README is retained at [docs/history/README.original.md](docs/history/README.original.md). `TECHNICAL_REPORT.md` describes historical experiments, not verified current LightGBM capability; its old claim that API labels never leaked was contradicted by the audit and is fixed in the new API. Historical experiment metrics are not displayed as current results.
 
 Further documentation: [API](docs/API_CONTRACT.md) · [Model handoff](docs/MODEL_INTEGRATION.md) · [Deployment](docs/DEPLOYMENT.md) · [Status and limitations](docs/INTEGRATION_STATUS.md).
+
+## One URL with ngrok
+
+Build the dashboard once and serve it from FastAPI, then tunnel the same port:
+
+```bash
+npm --prefix evaluator_ui run build
+python -m uvicorn api_server:app --host 127.0.0.1 --port 8000 --workers 1
+# In another terminal, unless an existing tunnel already targets port 8000:
+ngrok http 8000
+```
+
+Share the returned HTTPS URL with `/ui/` appended. Frontend and API use that same origin automatically; the remote laptop needs only a browser, with no local server or API URL entry. A browser request to the bare root redirects to `/ui/`. Keep the API and ngrok running on Laptop 1. This is a public demo link; share only with intended viewers. No raw reference files or model artifacts are mounted as static content. See [unified deployment review](docs/UNIFIED_DEPLOYMENT.md).
